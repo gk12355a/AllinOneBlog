@@ -13,6 +13,7 @@
     "search": "Tìm kiếm nhanh (Ctrl+K)"
   },
   "home": {
+    "greeting": "Xin chào, tôi là",
     "view_projects": "Xem Dự Án",
     "contact_me": "Liên Hệ Ngay",
     "download_cv": "Tải CV (PDF)",

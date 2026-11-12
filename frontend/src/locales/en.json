@@ -13,6 +13,7 @@
     "search": "Quick Search (Ctrl+K)"
   },
   "home": {
+    "greeting": "Hi, I'm",
     "view_projects": "View Projects",
     "contact_me": "Contact Me",
     "download_cv": "Download CV",

@@ -50,7 +50,7 @@ export default function Home() {
           )}
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
-            Xin chào, tôi là{' '}
+            {t('home.greeting')}{' '}
             <span className="bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
               {profile?.full_name || 'Đỗ Trí Kiên'}
             </span>
