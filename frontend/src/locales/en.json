@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "blog": "Blog",
+    "series": "Series",
+    "videos": "Videos",
+    "albums": "Albums",
+    "certificates": "Certifications",
+    "library": "My Library",
+    "admin": "Admin Dashboard",
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "search": "Quick Search (Ctrl+K)"
+  },
+  "home": {
+    "view_projects": "View Projects",
+    "contact_me": "Contact Me",
+    "download_cv": "Download CV",
+    "featured_projects": "Featured Projects",
+    "experience": "Work Experience",
+    "skills": "Technical Skills",
+    "recent_posts": "Recent Articles",
+    "view_all": "View All",
+    "send_message": "Send Message",
+    "your_name": "Your Full Name",
+    "your_email": "Email Address",
+    "message_content": "Your Message..."
+  },
+  "blog": {
+    "reading_time": "min read",
+    "views": "views",
+    "likes": "likes",
+    "table_of_contents": "On this page",
+    "reader_mode": "Focus Reader Mode",
+    "listen_audio": "Listen to Article",
+    "related_posts": "Related Articles",
+    "prev_post": "Previous",
+    "next_post": "Next",
+    "bookmark": "Save Bookmark",
+    "bookmarked": "Saved"
+  }
+}

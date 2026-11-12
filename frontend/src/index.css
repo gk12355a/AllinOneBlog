@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --color-scheme: light;
+  }
+  
+  html.dark {
+    --color-scheme: dark;
+    color-scheme: dark;
+    background-color: #09090b;
+    color: #f4f4f5;
+  }
+
+  body {
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Custom smooth dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html.dark ::-webkit-scrollbar-track {
+    background: #09090b;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #27272a;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+  }
+}
+
+/* Định nghĩa rõ ràng các lớp font để đảm bảo hiển thị đúng */
+.font-reading-serif {
+  font-family: Merriweather, Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+
+.font-reading-sans {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.font-reading-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+}
+
+/* Dark mode glowing card effect */
+.dark-glow {
+  box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.12);
+}
+
+.dark-border-glow {
+  border-color: rgba(99, 102, 241, 0.2);
+}
