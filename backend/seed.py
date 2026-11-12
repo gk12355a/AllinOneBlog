@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from app import create_app
 from app.extensions import db
-from app.models import User, Profile, Series, Post, Project, Video, Album, AlbumPhoto
+from app.models import User, Profile, Series, Post, Project, Video, Album, AlbumPhoto, Certificate
 
 app = create_app()
 
@@ -40,44 +40,45 @@ def seed_database():
         profile = Profile.query.first()
         if not profile:
             skills_data = [
-                {"category": "Frontend", "items": ["React", "Vite", "Tailwind CSS", "TypeScript", "Next.js"]},
-                {"category": "Backend", "items": ["Python", "Flask", "FastAPI", "SQLAlchemy", "PostgreSQL", "SQLite"]},
-                {"category": "DevOps & Tools", "items": ["Docker", "Git", "GitHub Actions", "Linux", "Nginx", "Cloudinary"]},
-                {"category": "AI & Data", "items": ["Scikit-learn", "Pandas", "NLP", "LangChain", "OpenAI API"]}
+                {"category": "Container & Orchestration", "items": ["Kubernetes (CKA)", "Docker", "Proxmox", "VMware"]},
+                {"category": "CI/CD & GitOps", "items": ["GitLab CI", "Jenkins", "ArgoCD", "Git"]},
+                {"category": "Cloud & Web Server", "items": ["AWS", "Nginx", "Apache", "Cloudflare Zero Trust"]},
+                {"category": "Monitoring & Security", "items": ["Prometheus", "Grafana", "Trivy", "SonarQube", "AppArmor"]},
+                {"category": "Databases & Message Queue", "items": ["MySQL", "MongoDB", "ElasticSearch", "Kafka", "RabbitMQ"]}
             ]
             timeline_data = [
                 {
-                    "year": "2024 - Hiện tại",
-                    "title": "Senior Full-stack Developer",
-                    "company": "Tech Solutions Corp",
-                    "description": "Xây dựng các giải pháp web quy mô lớn, tích hợp AI và tối ưu hóa hiệu năng hệ thống."
+                    "year": "09/2025 - 12/2025",
+                    "title": "Thực tập sinh lập trình viên & Triển khai",
+                    "company": "CMC Global",
+                    "description": "Phát triển backend Java Spring Boot, RESTful APIs, tối ưu hóa cơ sở dữ liệu MySQL và hỗ trợ triển khai hệ thống bằng Docker, phối hợp với Frontend ReactJS."
                 },
                 {
-                    "year": "2022 - 2024",
-                    "title": "Software Engineer",
-                    "company": "Digital Innovation Lab",
-                    "description": "Phát triển các ứng dụng web với React, Python backend và kiến trúc microservices."
+                    "year": "2023 - 2024",
+                    "title": "Trainee Member & DevOps Research",
+                    "company": "All in blessing",
+                    "description": "Nghiên cứu chuyên sâu về Linux, Docker, Git, Kubernetes, GitLab CI. Xây dựng Dockerfile đa nền tảng, thiết lập pipeline CI/CD và giải pháp High Availability cho MongoDB, ElasticSearch, Kafka."
                 },
                 {
-                    "year": "2020 - 2022",
-                    "title": "Junior Web Developer",
-                    "company": "Creative Agency",
-                    "description": "Thiết kế giao diện người dùng tương tác cao và xây dựng RESTful APIs."
+                    "year": "2023 - 2026",
+                    "title": "Sinh viên Khoa học Máy tính (GPA 3.54/4)",
+                    "company": "Trường Đại học CMC",
+                    "description": "Nhận học bổng 70% toàn khóa học. Đạt giải Khuyến khích Hội nghị Nghiên cứu Khoa học Sinh viên (05/2025)."
                 }
             ]
             social_links = {
-                "github": "https://github.com/kiennguyen",
-                "linkedin": "https://linkedin.com/in/kiennguyen",
-                "youtube": "https://youtube.com/@kiennguyen",
-                "twitter": "https://twitter.com/kiennguyen"
+                "github": "https://github.com/gk12355a",
+                "email": "kiendotri@gmail.com",
+                "phone": "0946312372",
+                "linkedin": "https://linkedin.com/in/kiendotri"
             }
             profile = Profile(
-                full_name="Kiên Đỗ",
-                headline="Full-stack Developer | AI & Python Enthusiast",
-                bio="Chào mừng bạn đến với không gian cá nhân của tôi! Tôi là kỹ sư phần mềm với đam mê sâu sắc về công nghệ web hiện đại, xây dựng kiến trúc hệ thống sạch (Clean Architecture) và ứng dụng Trí tuệ Nhân tạo vào giải quyết các bài toán thực tiễn.",
+                full_name="Đỗ Trí Kiên",
+                headline="DevOps Engineer | Cloud & Infrastructure Specialist",
+                bio="As a DevOps Engineer, I am passionate about containerization (Docker, Kubernetes), virtualization, and automating CI/CD pipelines (GitLab CI, Jenkins, ArgoCD) to ensure resilient, high-availability, secure, and scalable infrastructure.",
                 avatar_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794477463/avatars/kien_do_avatar.jpg",
-                resume_url="/uploads/cv.pdf",
-                live_status="🟢 Sẵn sàng nhận dự án mới",
+                resume_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794477884/resumes/kien_do_cv.pdf",
+                live_status="🟢 Available for new projects",
                 social_links_json=json.dumps(social_links),
                 skills_json=json.dumps(skills_data),
                 timeline_json=json.dumps(timeline_data)
@@ -271,6 +272,85 @@ Stay tuned for more web engineering insights!
             )
             db.session.add_all([photo1, photo2])
             print("Sample albums seeded.")
+
+        # 9. Khởi tạo Chứng chỉ (Certificates) mẫu
+        if Certificate.query.count() == 0:
+            certs = [
+                Certificate(
+                    title="Certified Kubernetes Administrator (CKA)",
+                    issuer="Cloud Native Computing Foundation (CNCF) & The Linux Foundation",
+                    issue_date="June 19, 2026",
+                    credential_id="LF-f5jrh502j1",
+                    credential_url="http://training.linuxfoundation.org/certification/verify",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794477864/certificates/cka_certificate.png",
+                    pdf_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794477864/certificates/cka_certificate.pdf",
+                    description="Chứng chỉ chứng minh năng lực chuyên sâu trong việc thiết kế, cài đặt, cấu hình, quản trị, bảo mật và khắc phục sự cố các cụm Kubernetes trong môi trường sản xuất thực tế.",
+                    skills="Kubernetes, Container Orchestration, Linux, Cluster Administration, Troubleshooting, Networking, Security",
+                    sort_order=1
+                ),
+                Certificate(
+                    title="Khóa học DevOps thực tế doanh nghiệp",
+                    issuer="DEVOPS EDU (devopsedu.vn)",
+                    issue_date="April 24, 2025",
+                    credential_id="75f5af1a416ebf79",
+                    credential_url="https://devopsedu.vn/certificate?cert_hash=75f5af1a416ebf79",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478767/certificates/devops_thuc_te_doanh_nghiep.jpg",
+                    pdf_url="",
+                    description="Ứng dụng quy trình DevOps vào mô hình vận hành kinh doanh thực tế, triển khai CI/CD nâng cao, quản trị hạ tầng Cloud, monitoring với Prometheus/Grafana và tự động hóa toàn diện.",
+                    skills="DevOps Practices, CI/CD Pipeline, Cloud Infra, Prometheus, Grafana, High Availability",
+                    sort_order=3
+                ),
+                Certificate(
+                    title="DevOps for Freshers",
+                    issuer="DEVOPS EDU (devopsedu.vn)",
+                    issue_date="May 15, 2024",
+                    credential_id="c5f4be43d2b10baf",
+                    credential_url="https://devopsedu.vn/certificate?cert_hash=c5f4be43d2b10baf",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478765/certificates/devops_for_freshers.jpg",
+                    pdf_url="",
+                    description="Nền tảng vững chắc về hệ điều hành Linux, mạng máy tính (Networking), Git workflow, Docker containerization cơ bản và xây dựng pipeline tự động ban đầu.",
+                    skills="Linux, Docker, Git, CI/CD Fundamentals, Bash Scripting",
+                    sort_order=4
+                ),
+                Certificate(
+                    title="Kubernetes in Practice",
+                    issuer="DEVOPS EDU (devopsedu.vn)",
+                    issue_date="January 1, 2025",
+                    credential_id="7559c1fd671bc1b3",
+                    credential_url="https://devopsedu.vn/certificate?cert_hash=7559c1fd671bc1b3",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478768/certificates/kubernetes_in_practice.jpg",
+                    pdf_url="",
+                    description="Kỹ năng thực chiến chuyên sâu với Kubernetes: Pods, Deployments, StatefulSets, Services, Ingress, Persistent Volumes, Helm charts và triển khai ứng dụng microservices thực tế.",
+                    skills="Kubernetes, Helm, Container Orchestration, Microservices, Cluster Management",
+                    sort_order=2
+                ),
+                Certificate(
+                    title="Configuration Management and the Cloud",
+                    issuer="Google (via Coursera)",
+                    issue_date="Apr 28, 2024",
+                    credential_id="2LMBLPJ6XXWN",
+                    credential_url="https://coursera.org/verify/2LMBLPJ6XXWN",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478956/certificates/google_configuration_management_cloud.png",
+                    pdf_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478956/certificates/google_configuration_management_cloud.pdf",
+                    description="Khóa học chuyên sâu được ủy quyền bởi Google: Quản trị cấu hình tự động (Puppet, Ansible), tự động hóa cơ sở hạ tầng đám mây (Infrastructure as Code) và quản lý phi tập trung trên Cloud.",
+                    skills="Configuration Management, Cloud Automation, Puppet, Infrastructure as Code (IaC), Google Cloud",
+                    sort_order=5
+                ),
+                Certificate(
+                    title="Troubleshooting and Debugging Techniques",
+                    issuer="Google (via Coursera)",
+                    issue_date="May 27, 2024",
+                    credential_id="BEWCADHHMSU8",
+                    credential_url="https://coursera.org/verify/BEWCADHHMSU8",
+                    image_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478957/certificates/google_troubleshooting_debugging.png",
+                    pdf_url="https://res.cloudinary.com/dmthdtph6/image/upload/v1794478957/certificates/google_troubleshooting_debugging.pdf",
+                    description="Phương pháp khoa học giải quyết sự cố và debug hệ thống: cô lập nguyên nhân gốc rễ (Root Cause Analysis), tối ưu hóa hiệu năng tài nguyên (CPU, Memory, Disk, Network) và giải quyết nút thắt cổ chai (bottlenecks).",
+                    skills="Troubleshooting, Root Cause Analysis (RCA), Debugging, System Performance, Linux Internals",
+                    sort_order=6
+                )
+            ]
+            db.session.add_all(certs)
+            print("Sample certificates seeded.")
 
         db.session.commit()
         print("Database successfully seeded with comprehensive mock data!")
