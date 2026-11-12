@@ -45,7 +45,7 @@ export default function Home() {
           {profile?.live_status && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold shadow-sm animate-pulse">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>{profile.live_status}</span>
+              <span>{t('home.live_status')}</span>
             </div>
           )}
 
@@ -57,11 +57,11 @@ export default function Home() {
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 font-medium">
-            {profile?.headline || 'DevOps Engineer | Cloud & Infrastructure Specialist'}
+            {t('home.headline') || profile?.headline || 'DevOps Engineer | Cloud & Infrastructure Specialist'}
           </p>
 
           <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xl text-sm sm:text-base">
-            {profile?.bio || 'Đam mê xây dựng các sản phẩm công nghệ tinh gọn, ảo hóa container, tự động hóa CI/CD và kiến trúc hạ tầng Cloud tính sẵn sàng cao.'}
+            {t('home.bio') || profile?.bio}
           </p>
 
           {/* Action Buttons */}

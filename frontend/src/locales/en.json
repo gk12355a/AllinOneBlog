@@ -14,6 +14,9 @@
   },
   "home": {
     "greeting": "Hi, I'm",
+    "live_status": "Available for new projects",
+    "headline": "DevOps Engineer | Cloud & Infrastructure Specialist",
+    "bio": "As a DevOps Engineer, I am passionate about containerization (Docker, Kubernetes), virtualization, and automating CI/CD pipelines (GitLab CI, Jenkins, ArgoCD) to ensure resilient, high-availability, secure, and scalable infrastructure.",
     "view_projects": "View Projects",
     "contact_me": "Contact Me",
     "download_cv": "Download CV",

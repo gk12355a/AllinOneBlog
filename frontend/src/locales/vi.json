@@ -14,6 +14,9 @@
   },
   "home": {
     "greeting": "Xin chào, tôi là",
+    "live_status": "Sẵn sàng nhận dự án mới",
+    "headline": "DevOps Engineer | Cloud & Infrastructure Specialist",
+    "bio": "Là một kỹ sư DevOps, tôi đam mê áp dụng kiến trúc ảo hóa, containerization (Docker, Kubernetes) và tự động hóa quy trình triển khai CI/CD (GitLab CI, Jenkins, ArgoCD) để đảm bảo hệ thống vận hành với tính sẵn sàng cao (High Availability), bảo mật và linh hoạt.",
     "view_projects": "Xem Dự Án",
     "contact_me": "Liên Hệ Ngay",
     "download_cv": "Tải CV (PDF)",
