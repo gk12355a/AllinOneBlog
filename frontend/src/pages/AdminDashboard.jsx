@@ -401,10 +401,10 @@ export default function AdminDashboard() {
                   <select
                     value={newPost.language}
                     onChange={(e) => setNewPost({ ...newPost, language: e.target.value })}
-                    className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent"
+                    className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                   >
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
+                    <option value="vi" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Tiếng Việt</option>
+                    <option value="en" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">English</option>
                   </select>
                 </div>
                 <div>
@@ -412,10 +412,10 @@ export default function AdminDashboard() {
                   <select
                     value={newPost.status}
                     onChange={(e) => setNewPost({ ...newPost, status: e.target.value })}
-                    className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent"
+                    className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                   >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
+                    <option value="draft" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Draft</option>
+                    <option value="published" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Published</option>
                   </select>
                 </div>
               </div>
