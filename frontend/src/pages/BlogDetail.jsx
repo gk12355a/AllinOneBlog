@@ -23,6 +23,11 @@ export default function BlogDetail() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
+  const hasHeadings = React.useMemo(() => {
+    if (!post?.content) return false;
+    return /^(#{2,3})\s+(.+)$/m.test(post.content);
+  }, [post?.content]);
+
   const fetchedRef = React.useRef(false);
 
   useEffect(() => {
@@ -284,9 +289,9 @@ export default function BlogDetail() {
       </div>
 
       {/* Main Layout Grid */}
-      <div className={`grid gap-12 ${isReaderMode ? 'max-w-3xl mx-auto' : 'grid-cols-1 lg:grid-cols-4'}`}>
+      <div className={`grid gap-12 ${isReaderMode || !hasHeadings ? 'max-w-3xl mx-auto w-full' : 'grid-cols-1 lg:grid-cols-4'}`}>
         {/* Article Content Body */}
-        <article className={`space-y-6 ${isReaderMode ? 'w-full' : 'lg:col-span-3'}`}>
+        <article className={`space-y-6 ${isReaderMode || !hasHeadings ? 'w-full' : 'lg:col-span-3'}`}>
           {/* Header Metadata */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
@@ -419,7 +424,7 @@ export default function BlogDetail() {
         </article>
 
         {/* Right Sticky Sidebar (TOC) */}
-        {!isReaderMode && (
+        {!isReaderMode && hasHeadings && (
           <aside className="hidden lg:block lg:col-span-1 space-y-6">
             <div className="sticky top-24 space-y-4">
               <TableOfContents content={post.content} />
