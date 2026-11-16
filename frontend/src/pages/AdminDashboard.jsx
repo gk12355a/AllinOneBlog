@@ -197,15 +197,15 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-zinc-200 dark:border-zinc-800 gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">{t('admin_dashboard')}</h1>
-          <p className="text-sm text-zinc-500 mt-1">Manage content, media, projects, messages, and portfolio profile.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">{t('admin.dashboard_title')}</h1>
+          <p className="text-sm text-zinc-500 mt-1">{t('admin.dashboard_subtitle')}</p>
         </div>
         <button
           onClick={fetchAdminData}
           className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Data
+          {t('admin.refresh_data')}
         </button>
       </div>
 
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          Overview Stats
+          {t('admin.tab_stats')}
         </button>
         <button
           onClick={() => setActiveTab('posts')}
@@ -227,7 +227,7 @@ export default function AdminDashboard() {
           }`}
         >
           <FileText className="w-4 h-4" />
-          Posts Manager ({posts.length})
+          {t('admin.tab_posts')} ({posts.length})
         </button>
         <button
           onClick={() => setActiveTab('media')}
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          Media & Watermark ({mediaList.length})
+          {t('admin.tab_media')} ({mediaList.length})
         </button>
         <button
           onClick={() => setActiveTab('messages')}
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
           }`}
         >
           <Mail className="w-4 h-4" />
-          Messages ({messages.filter(m => !m.is_read).length} unread)
+          {t('admin.tab_messages')} ({messages.filter(m => !m.is_read).length} unread)
         </button>
       </div>
 
@@ -254,25 +254,25 @@ export default function AdminDashboard() {
         <div className="space-y-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Views</span>
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('admin.total_views')}</span>
               <p className="text-3xl font-extrabold mt-2 text-indigo-600 dark:text-indigo-400">{stats.total_views}</p>
             </div>
             <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Published Posts</span>
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('admin.published_posts')}</span>
               <p className="text-3xl font-extrabold mt-2 text-zinc-900 dark:text-zinc-100">{stats.total_posts}</p>
             </div>
             <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Projects / Videos</span>
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('admin.projects_videos')}</span>
               <p className="text-3xl font-extrabold mt-2 text-zinc-900 dark:text-zinc-100">{stats.total_projects} / {stats.total_videos}</p>
             </div>
             <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Unread Messages</span>
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('admin.unread_messages')}</span>
               <p className="text-3xl font-extrabold mt-2 text-amber-500">{stats.unread_messages}</p>
             </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-base font-bold mb-4">Top Viewed Posts</h3>
+            <h3 className="text-base font-bold mb-4">{t('admin.top_posts')}</h3>
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {stats.top_posts?.map((p) => (
                 <div key={p.id} className="py-3 flex items-center justify-between">
@@ -291,7 +291,7 @@ export default function AdminDashboard() {
       {activeTab === 'posts' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">All Posts</h2>
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{t('admin.all_posts')}</h2>
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 overflow-hidden">
               {posts.map((post) => (
                 <div key={post.id} className="p-4 flex items-center justify-between gap-4">
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                         post.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
                       }`}>
-                        {post.status}
+                        {post.status === 'published' ? t('admin.published') : t('admin.draft')}
                       </span>
                       <span className="text-[10px] uppercase font-bold text-zinc-400">{post.language}</span>
                     </div>
@@ -315,7 +315,7 @@ export default function AdminDashboard() {
                         className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs flex items-center gap-1"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        Preview
+                        {t('admin.preview')}
                       </button>
                     )}
                     <button
@@ -349,7 +349,7 @@ export default function AdminDashboard() {
 
             {previewToken && (
               <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-xl">
-                <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-1">Draft Preview URL (Valid for 1 hour):</p>
+                <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-1">{t('admin.preview_url_notice')}</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
                     rel="noreferrer"
                     className="px-3 py-2 bg-indigo-600 text-white rounded text-xs font-semibold whitespace-nowrap"
                   >
-                    Open
+                    {t('admin.open')}
                   </a>
                 </div>
               </div>
@@ -373,11 +373,11 @@ export default function AdminDashboard() {
           {/* Form */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6">
             <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-              {editingPostId ? 'Edit Post' : 'Create New Post'}
+              {editingPostId ? t('admin.edit_post') : t('admin.create_post')}
             </h2>
             <form onSubmit={handleSavePost} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Title</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.title')}</label>
                 <input
                   type="text"
                   required
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Slug (leave empty to auto-generate)</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.slug')}</label>
                 <input
                   type="text"
                   value={newPost.slug}
@@ -397,7 +397,7 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Language</label>
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.language')}</label>
                   <select
                     value={newPost.language}
                     onChange={(e) => setNewPost({ ...newPost, language: e.target.value })}
@@ -408,19 +408,19 @@ export default function AdminDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Status</label>
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.status')}</label>
                   <select
                     value={newPost.status}
                     onChange={(e) => setNewPost({ ...newPost, status: e.target.value })}
                     className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                   >
-                    <option value="draft" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Draft</option>
-                    <option value="published" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">Published</option>
+                    <option value="draft" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">{t('admin.draft')}</option>
+                    <option value="published" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">{t('admin.published')}</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Thumbnail URL</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.thumbnail')}</label>
                 <input
                   type="text"
                   value={newPost.thumbnail}
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Tags (comma-separated)</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.tags')}</label>
                 <input
                   type="text"
                   value={newPost.tags}
@@ -440,7 +440,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Excerpt</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.excerpt')}</label>
                 <textarea
                   rows={2}
                   value={newPost.excerpt}
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Markdown Content</label>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{t('admin.content')}</label>
                 <textarea
                   rows={6}
                   required
@@ -463,7 +463,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition"
                 >
-                  {editingPostId ? 'Update Post' : 'Create Post'}
+                  {editingPostId ? t('admin.btn_update') : t('admin.btn_save')}
                 </button>
                 {editingPostId && (
                   <button
@@ -483,7 +483,7 @@ export default function AdminDashboard() {
                     }}
                     className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-semibold"
                   >
-                    Cancel
+                    {t('admin.btn_cancel')}
                   </button>
                 )}
               </div>
@@ -496,8 +496,8 @@ export default function AdminDashboard() {
       {activeTab === 'media' && (
         <div className="space-y-6">
           <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
-            <h3 className="text-base font-bold mb-2">Upload Image with Auto Watermark (© allinoneblog.dev)</h3>
-            <p className="text-xs text-zinc-500 mb-4">Images are watermarked and sanitized to prevent malicious uploads.</p>
+            <h3 className="text-base font-bold mb-2">{t('admin.upload_title')}</h3>
+            <p className="text-xs text-zinc-500 mb-4">{t('admin.upload_subtitle')}</p>
             <form onSubmit={handleUploadMedia} className="flex flex-col sm:flex-row items-center gap-3">
               <input
                 type="file"
@@ -511,7 +511,7 @@ export default function AdminDashboard() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-50"
               >
                 <Upload className="w-3.5 h-3.5" />
-                {uploading ? 'Processing...' : 'Upload & Watermark'}
+                {uploading ? t('admin.uploading') : t('admin.upload_btn')}
               </button>
             </form>
           </div>
@@ -540,10 +540,10 @@ export default function AdminDashboard() {
       {/* Messages */}
       {activeTab === 'messages' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Contact Inquiries</h2>
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{t('admin.messages_title')}</h2>
           <div className="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 overflow-hidden">
             {messages.length === 0 ? (
-              <p className="p-8 text-center text-sm text-zinc-500">No contact messages yet.</p>
+              <p className="p-8 text-center text-sm text-zinc-500">{t('admin.no_messages')}</p>
             ) : (
               messages.map((m) => (
                 <div key={m.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${m.is_read ? 'opacity-70' : 'bg-indigo-50/20 dark:bg-indigo-950/10'}`}>
@@ -552,7 +552,7 @@ export default function AdminDashboard() {
                       <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{m.sender_name}</span>
                       <span className="text-xs text-zinc-400">&lt;{m.sender_email}&gt;</span>
                       {!m.is_read && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400">NEW</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400">{t('admin.new_badge')}</span>
                       )}
                     </div>
                     <p className="text-xs text-zinc-600 dark:text-zinc-300">{m.message}</p>
@@ -564,7 +564,7 @@ export default function AdminDashboard() {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
                     >
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                      Mark Read
+                      {t('admin.mark_read')}
                     </button>
                   )}
                 </div>
