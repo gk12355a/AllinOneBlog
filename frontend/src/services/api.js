@@ -44,6 +44,7 @@ export const profileApi = {
 
 export const postApi = {
   getPosts: (params) => api.get('/posts', { params }),
+  getAdminPosts: () => api.get('/admin/posts'),
   getPost: (slug, params) => api.get(`/posts/${slug}`, { params }),
   getRelatedPosts: (slug) => api.get(`/posts/${slug}/related`),
   reactPost: (slug, emoji) => api.post(`/posts/${slug}/reactions`, { emoji }),

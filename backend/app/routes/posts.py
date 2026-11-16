@@ -118,14 +118,18 @@ def preview_post(slug: str):
 
     return api_response(success=True, data=post.to_dict(include_content=True))
 
-@posts_bp.route("/admin/posts/<int:post_id>/preview-token", methods=["POST"])
+@posts_bp.route("/admin/posts/<post_identifier>/preview-token", methods=["POST"])
 @admin_required()
-def create_preview_token(post_id: int):
-    post = Post.query.get(post_id)
+def create_preview_token(post_identifier):
+    if str(post_identifier).isdigit():
+        post = Post.query.get(int(post_identifier))
+    else:
+        post = Post.query.filter_by(slug=str(post_identifier)).first()
+
     if not post:
         return api_response(success=False, message="Post not found.", status_code=404)
     token = generate_preview_token(post.id)
-    return api_response(success=True, data={"token": token, "preview_url": f"/blog/{post.slug}?preview={token}"})
+    return api_response(success=True, data={"token": token, "preview_token": token, "preview_url": f"/blog/{post.slug}?preview={token}"})
 
 @posts_bp.route("/posts/<string:slug>/reactions", methods=["POST"])
 @limiter.limit("60 per minute")

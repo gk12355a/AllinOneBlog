@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Clock, Eye, Share2, Bookmark, BookmarkCheck, Heart, ArrowLeft, ArrowRight, SidebarClose, SidebarOpen, Type } from 'lucide-react';
 import api, { userLibraryApi } from '../services/api';
 import TableOfContents from '../components/TableOfContents';
@@ -12,6 +12,8 @@ import { useApp } from '../contexts/AppContext';
 
 export default function BlogDetail() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const previewToken = searchParams.get('preview');
   const { user, t } = useApp();
   const [post, setPost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +31,11 @@ export default function BlogDetail() {
     fetchedRef.current = true;
 
     setIsLoading(true);
-    api.get(`/posts/${slug}`)
+    const fetchPromise = previewToken
+      ? api.get(`/posts/${slug}/preview?token=${previewToken}`)
+      : api.get(`/posts/${slug}`);
+
+    fetchPromise
       .then(res => {
         const postData = res?.data || res;
         setPost(postData);
@@ -58,7 +64,7 @@ export default function BlogDetail() {
       // Khi người dùng chuyển sang bài viết khác, reset ref để bài mới được đếm
       fetchedRef.current = false;
     };
-  }, [slug, user]);
+  }, [slug, previewToken, user]);
 
   const toggleLike = async () => {
     if (!user) {
@@ -132,6 +138,18 @@ export default function BlogDetail() {
 
   return (
     <div className="py-8 space-y-8 animate-fade-in">
+      {post.status === 'draft' && (
+        <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl flex items-center justify-between text-xs font-semibold text-amber-800 dark:text-amber-300">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>Chế độ Xem Trước Bản Nháp (Draft Preview Mode) - Bài viết chưa được công khai.</span>
+          </div>
+          <Link to="/admin" className="px-3 py-1 bg-amber-200 dark:bg-amber-900 rounded-lg hover:opacity-80">
+            Quay lại Admin
+          </Link>
+        </div>
+      )}
+
       {/* Top Reading Controls Bar */}
       <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
         <Link

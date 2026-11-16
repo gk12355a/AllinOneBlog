@@ -50,7 +50,7 @@ export default function AdminDashboard() {
     try {
       const [sRes, pRes, mRes, msgRes, projRes, vidRes, profRes] = await Promise.all([
         profileApi.getAdminStats(),
-        postApi.getPosts({ per_page: 50 }),
+        postApi.getAdminPosts(),
         mediaApi.getMediaList(),
         contentApi.getMessages(),
         contentApi.getProjects(),
@@ -106,8 +106,10 @@ export default function AdminDashboard() {
         status: 'draft',
         tags: 'python, web'
       });
-      const pRes = await postApi.getPosts({ per_page: 50 });
-      if (pRes.data?.success) setPosts(pRes.data.data.items);
+      const pRes = await postApi.getAdminPosts();
+      const pData = pRes?.data || pRes;
+      if (Array.isArray(pData)) setPosts(pData);
+      else if (pData?.items) setPosts(pData.items);
     } catch (err) {
       alert(err.response?.data?.message || 'Error saving post');
     }
