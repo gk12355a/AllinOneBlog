@@ -256,6 +256,7 @@ def get_admin_posts():
     return api_response(success=True, data=[p.to_dict(include_content=False) for p in posts])
 
 @posts_bp.route("/posts", methods=["POST"])
+@posts_bp.route("/admin/posts", methods=["POST"])
 @admin_required()
 def create_post():
     data = request.get_json() or {}
@@ -302,6 +303,7 @@ def create_post():
     return api_response(success=True, data=post.to_dict(include_content=True), message="Post created successfully.", status_code=201)
 
 @posts_bp.route("/posts/<int:post_id>", methods=["PUT"])
+@posts_bp.route("/admin/posts/<int:post_id>", methods=["PUT"])
 @admin_required()
 def update_post(post_id: int):
     post = Post.query.get(post_id)
@@ -341,6 +343,7 @@ def update_post(post_id: int):
     return api_response(success=True, data=post.to_dict(include_content=True), message="Post updated successfully.")
 
 @posts_bp.route("/posts/<int:post_id>", methods=["DELETE"])
+@posts_bp.route("/admin/posts/<int:post_id>", methods=["DELETE"])
 @admin_required()
 def delete_post(post_id: int):
     post = Post.query.get(post_id)
