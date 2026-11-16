@@ -519,7 +519,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {mediaList.map((m) => (
               <div key={m.id} className="group relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-                <img src={m.url} alt={m.filename} className="w-full h-36 object-cover" />
+                <img src={m.watermark_url || m.file_url || m.url} alt={m.filename} className="w-full h-36 object-cover" />
                 <div className="p-2">
                   <p className="text-[11px] font-medium truncate text-zinc-700 dark:text-zinc-300">{m.filename}</p>
                   <p className="text-[10px] text-zinc-400">{(m.file_size / 1024).toFixed(1)} KB</p>

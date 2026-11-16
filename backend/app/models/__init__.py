@@ -297,6 +297,7 @@ class Media(db.Model):
             "filename": self.filename,
             "file_url": self.file_url,
             "watermark_url": self.watermark_url,
+            "url": self.watermark_url or self.file_url,
             "file_type": self.file_type,
             "file_size": self.file_size,
             "created_at": self.created_at.isoformat() if self.created_at else None
