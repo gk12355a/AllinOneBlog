@@ -128,8 +128,14 @@ export default function AdminDashboard() {
   const handleGeneratePreview = async (slug) => {
     try {
       const res = await postApi.getPreviewToken(slug);
-      if (res.data?.success) {
-        setPreviewToken({ slug, token: res.data.data.preview_token });
+      const data = res?.data || res;
+      const token = data?.preview_token || data?.token;
+      if (token) {
+        setPreviewToken({ slug, token });
+        // Mở luôn tab mới xem trước cho tiện lợi
+        window.open(`/blog/${slug}?preview=${token}`, '_blank');
+      } else {
+        alert('Failed to extract preview token');
       }
     } catch (err) {
       alert('Failed to generate preview token');
