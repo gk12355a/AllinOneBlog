@@ -22,6 +22,7 @@ export default function SeriesDetail() {
   const { slug } = useParams();
   const { lang, t, user } = useApp();
   const [series, setSeries] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -36,10 +37,15 @@ export default function SeriesDetail() {
 
   useEffect(() => {
     setIsLoading(true);
-    api.get(`/series/${slug}`)
-      .then((res) => {
-        const data = res?.data || res;
-        setSeries(data);
+    Promise.all([
+      api.get(`/series/${slug}`),
+      api.get('/profile')
+    ])
+      .then(([seriesRes, profileRes]) => {
+        const sData = seriesRes?.data || seriesRes;
+        const pData = profileRes?.data || profileRes;
+        setSeries(sData);
+        if (pData) setProfile(pData);
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
@@ -58,7 +64,7 @@ export default function SeriesDetail() {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: series?.title,
+        title: series?.title || 'Series Lộ Trình Học',
         url: window.location.href
       }).catch(() => {});
     } else {
@@ -96,46 +102,31 @@ export default function SeriesDetail() {
     );
   }
 
-  // Calculate actual reading time
-  const totalPostsCount = series.posts?.length || 0;
+  // Calculate actual reading time of published posts
+  const publishedPosts = series.posts || [];
+  const totalPostsCount = publishedPosts.length;
   const totalReadingTime = series.total_reading_time || (totalPostsCount * 6);
-  const completedCount = series.posts?.filter((p) => completedPostIds.includes(p.id)).length || 0;
+  const completedCount = publishedPosts.filter((p) => completedPostIds.includes(p.id)).length;
   const progressPercent = totalPostsCount > 0 ? Math.round((completedCount / totalPostsCount) * 100) : 0;
 
   // First post link
-  const firstPost = series.posts && series.posts.length > 0 ? series.posts[0] : null;
+  const firstPost = publishedPosts.length > 0 ? publishedPosts[0] : null;
 
-  // Curated roadmap future lessons (Coming Soon) for Flask A-Z roadmap
-  const plannedRoadmapLessons = [
-    {
-      id: 'plan-1',
-      title: 'Tối ưu hóa Database với SQLAlchemy ORM & Connection Pooling',
-      excerpt: 'Mô hình Data Access Object (DAO), Repository Pattern, quản lý Transaction và tối ưu truy vấn.',
-      stage: 'Phần 2: Database & Data Modeling',
-      reading_time: 7
-    },
-    {
-      id: 'plan-2',
-      title: 'Xác thực bảo mật JWT, RBAC & Refresh Token Rotation',
-      excerpt: 'Bảo mật hệ thống API phân quyền người dùng theo chuẩn OAuth2/JWT với mã hóa bất đối xứng.',
-      stage: 'Phần 3: Bảo mật & Xác thực',
-      reading_time: 8
-    },
-    {
-      id: 'plan-3',
-      title: 'Xây dựng Async Tasks với Celery, Redis & RabbitMQ',
-      excerpt: 'Xử lý tác vụ nền hàng đợi (gửi email, xuất báo cáo, xử lý ảnh thumbnail) không chặn luồng HTTP.',
-      stage: 'Phần 4: Asynchronous & Caching',
-      reading_time: 9
-    },
-    {
-      id: 'plan-4',
-      title: 'Containerize Docker đa nền tảng & Triển khai CI/CD Production',
-      excerpt: 'Đóng gói Dockerfile chuẩn best practices, kiểm thử tự động và triển khai lên Kubernetes Cluster.',
-      stage: 'Phần 5: DevOps & Production Deployment',
-      reading_time: 10
-    }
-  ];
+  // Upcoming lessons from backend ONLY (zero hardcoded mock)
+  const plannedRoadmapLessons = Array.isArray(series.upcoming_lessons) ? series.upcoming_lessons : [];
+  const totalCurriculumCount = totalPostsCount + plannedRoadmapLessons.length;
+
+  const levelLabel = {
+    beginner: 'Cơ bản',
+    intermediate: 'Trung cấp',
+    advanced: 'Chuyên sâu'
+  }[series.level || 'beginner'] || 'Cơ bản';
+
+  const statusLabel = {
+    updating: 'Đang cập nhật',
+    completed: 'Hoàn thành',
+    upcoming: 'Sắp ra mắt'
+  }[series.status || 'updating'] || 'Đang cập nhật';
 
   return (
     <div className="py-10 space-y-10 animate-fade-in">
@@ -163,18 +154,19 @@ export default function SeriesDetail() {
               alt={series.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-blue-900/30 pointer-events-none"></div>
+            {/* Dark gradient overlay for readable text */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
 
-            <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600/90 backdrop-blur-md text-white text-xs font-bold shadow-md">
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-              <span>{t('series.status_updating')}</span>
+            <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-md">
+              <span className={`w-2 h-2 rounded-full ${series.status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+              <span>{statusLabel}</span>
             </div>
 
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 font-mono">
-                {totalPostsCount} {t('series.posts_count')}
+              <span className="px-3 py-1.5 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 font-mono shadow-sm">
+                {totalPostsCount} bài đã phát hành
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 font-mono">
+              <span className="px-3 py-1.5 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 font-mono shadow-sm">
                 ~{totalReadingTime} {t('blog.reading_time')}
               </span>
             </div>
@@ -185,10 +177,10 @@ export default function SeriesDetail() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold border border-blue-200/50 dark:border-blue-800/50">
-                Lộ trình chuẩn Software Engineering
+                Lộ trình học
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium">
-                Cấp độ: Trung cấp (Intermediate)
+              <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200 dark:border-zinc-700">
+                Cấp độ: {levelLabel}
               </span>
             </div>
 
@@ -206,7 +198,7 @@ export default function SeriesDetail() {
             {/* Progress bar */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-zinc-600 dark:text-zinc-400">
-                <span>{t('series.progress')}: {completedCount}/{totalPostsCount} {t('series.posts_count')}</span>
+                <span>{t('series.progress')}: {completedCount}/{totalPostsCount} bài đã phát hành</span>
                 <span className="text-blue-600 dark:text-blue-400 font-mono">{progressPercent}%</span>
               </div>
               <div className="w-full h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
@@ -245,20 +237,20 @@ export default function SeriesDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Timeline Roadmap (8 Cols) */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span>{t('series.roadmap_posts')}</span>
             </h2>
             <span className="text-xs text-zinc-500 font-medium">
-              Click vào dấu tích tròn để lưu bài đã học
+              Bấm vào số thứ tự tròn để đánh dấu bài đã học
             </span>
           </div>
 
           {/* Timeline Container */}
           <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-3 sm:before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-zinc-200 dark:before:bg-zinc-800">
             {/* Published Articles */}
-            {series.posts?.map((post, idx) => {
+            {publishedPosts.map((post, idx) => {
               const isCompleted = completedPostIds.includes(post.id);
 
               return (
@@ -321,37 +313,45 @@ export default function SeriesDetail() {
               );
             })}
 
-            {/* Upcoming Roadmap Lessons (Coming Soon) to give learners full perspective of the curriculum */}
-            {plannedRoadmapLessons.map((lesson, idx) => (
-              <div key={lesson.id} className="relative opacity-60 hover:opacity-85 transition-opacity">
-                {/* Locked Node */}
-                <div className="absolute -left-6 sm:-left-8 top-5 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center text-xs font-bold ring-4 ring-white dark:ring-zinc-950 z-10">
-                  <Lock className="w-3.5 h-3.5" />
-                </div>
-
-                <div className="p-5 sm:p-6 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/40 border border-dashed border-zinc-300 dark:border-zinc-800">
-                  <div className="flex items-center justify-between text-xs font-medium text-zinc-400">
-                    <span className="font-semibold text-zinc-500">{lesson.stage}</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200/70 dark:bg-zinc-800 text-[10px] font-bold uppercase tracking-wider">
-                      {t('series.coming_soon_tag')}
-                    </span>
+            {/* Upcoming Roadmap Lessons (Chỉ hiển thị khi có dữ liệu từ admin) */}
+            {plannedRoadmapLessons.map((lesson, idx) => {
+              const lessonOrder = totalPostsCount + idx + 1;
+              return (
+                <div key={lesson.id || idx} className="relative group">
+                  {/* Locked Node */}
+                  <div className="absolute -left-6 sm:-left-8 top-5 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-xs font-bold ring-4 ring-white dark:ring-zinc-950 z-10 shadow-sm">
+                    <span className="text-[11px] font-mono">{lessonOrder}</span>
                   </div>
 
-                  <h3 className="font-bold text-zinc-700 dark:text-zinc-300 text-base mt-2">
-                    {lesson.title}
-                  </h3>
+                  <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 shadow-sm transition hover:border-zinc-400">
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center gap-2 font-semibold text-zinc-700 dark:text-zinc-300">
+                        <Lock className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Bài {lessonOrder}: {lesson.stage || 'Kế hoạch học tập'}</span>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-xs font-bold tracking-wide">
+                        {t('series.coming_soon_tag')}
+                      </span>
+                    </div>
 
-                  <p className="text-xs sm:text-sm text-zinc-500 mt-1 leading-relaxed">
-                    {lesson.excerpt}
-                  </p>
+                    <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-base mt-2.5">
+                      {lesson.title}
+                    </h3>
 
-                  <div className="pt-3 mt-3 flex items-center gap-1 text-xs text-zinc-400 font-mono">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Dự kiến: ~{lesson.reading_time} phút đọc</span>
+                    {lesson.excerpt && (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                        {lesson.excerpt}
+                      </p>
+                    )}
+
+                    <div className="pt-3 mt-3 flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Dự kiến: ~{lesson.reading_time || 5} phút đọc</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -359,14 +359,14 @@ export default function SeriesDetail() {
         <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
           {/* Roadmap Highlights */}
           <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider text-xs">
+            <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
               Thông tin lộ trình
             </h3>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800/60">
                 <span className="text-zinc-500">Tổng bài học</span>
-                <span className="font-bold text-zinc-900 dark:text-zinc-100">{totalPostsCount + plannedRoadmapLessons.length} bài</span>
+                <span className="font-bold text-zinc-900 dark:text-zinc-100">{totalCurriculumCount} bài</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800/60">
                 <span className="text-zinc-500">Đã phát hành</span>
@@ -383,28 +383,36 @@ export default function SeriesDetail() {
             </div>
           </div>
 
-          {/* Instructor / Author Card */}
+          {/* Instructor / Author Card (Lấy động từ Profile) */}
           <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider text-xs">
+            <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
               Tác giả biên soạn
             </h3>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
-                K
-              </div>
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || 'Tác giả'}
+                  className="w-12 h-12 rounded-2xl object-cover border border-zinc-200 dark:border-zinc-700 shadow-sm shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+                  {profile?.full_name?.charAt(0) || 'K'}
+                </div>
+              )}
               <div>
                 <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  Đỗ Trí Kiên
+                  {profile?.full_name || 'Đỗ Trí Kiên'}
                 </h4>
                 <p className="text-xs text-zinc-500">
-                  DevOps & Full-Stack Engineer
+                  {profile?.headline || 'DevOps & Full-Stack Engineer'}
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Các bài viết được đúc kết từ kinh nghiệm thực chiến phát triển ứng dụng Production, containerization và triển khai hệ thống bảo mật cao.
+              {profile?.bio || 'Các bài viết được đúc kết từ kinh nghiệm thực chiến phát triển ứng dụng Production, containerization và triển khai hệ thống bảo mật cao.'}
             </p>
           </div>
         </div>

@@ -58,17 +58,17 @@ export default function SeriesList() {
     }
   };
 
-  // Enhance each series with calculated level & status
+  // Enhance each series with level & status (Use admin explicit setting if present, otherwise calculate fallback)
   const enrichedSeries = seriesList.map((s) => {
     const totalPosts = s.total_posts || 0;
-    // Status logic: if total_posts >= 5 then Completed, if total_posts > 0 then In Progress, else Upcoming
-    const status = totalPosts >= 5 ? 'completed' : totalPosts > 0 ? 'updating' : 'upcoming';
-    // Difficulty level heuristic
-    const level = s.title.toLowerCase().includes('a-z') || s.title.toLowerCase().includes('cơ bản')
-      ? 'beginner'
-      : s.title.toLowerCase().includes('nâng cao') || s.title.toLowerCase().includes('architecture')
-      ? 'advanced'
-      : 'intermediate';
+    const status = s.status || (totalPosts >= 5 ? 'completed' : totalPosts > 0 ? 'updating' : 'upcoming');
+    const level = s.level || (
+      s.title.toLowerCase().includes('a-z') || s.title.toLowerCase().includes('cơ bản')
+        ? 'beginner'
+        : s.title.toLowerCase().includes('nâng cao') || s.title.toLowerCase().includes('architecture')
+        ? 'advanced'
+        : 'intermediate'
+    );
 
     return {
       ...s,

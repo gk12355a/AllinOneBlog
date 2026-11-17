@@ -5,6 +5,9 @@
 @layer base {
   :root {
     --color-scheme: light;
+    color-scheme: light;
+    background-color: #fafafa;
+    color: #18181b;
   }
   
   html.dark {
@@ -15,7 +18,28 @@
   }
 
   body {
+    background-color: inherit;
+    color: inherit;
     transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Global reading font size variables controlled by data-reading-size */
+  html[data-reading-size="small"] {
+    --reading-font-size: 15px;
+    --reading-line-height: 1.7;
+  }
+  html[data-reading-size="medium"], html:not([data-reading-size]) {
+    --reading-font-size: 16px;
+    --reading-line-height: 1.75;
+  }
+  html[data-reading-size="large"] {
+    --reading-font-size: 18px;
+    --reading-line-height: 1.85;
+  }
+
+  .blog-content-preview, .blog-reading-content {
+    font-size: var(--reading-font-size, 16px);
+    line-height: var(--reading-line-height, 1.75);
   }
 
   /* Custom smooth dark scrollbar */

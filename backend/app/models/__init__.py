@@ -13,6 +13,15 @@ class User(db.Model):
     role = db.Column(db.String(20), default="user", nullable=False)  # "admin" | "user"
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    avatar_url = db.Column(db.String(500), default="")
+    display_name = db.Column(db.String(120), default="")
+    bio = db.Column(db.String(255), default="")
+    location = db.Column(db.String(100), default="")
+    website = db.Column(db.String(255), default="")
+    github_url = db.Column(db.String(255), default="")
+    linkedin_url = db.Column(db.String(255), default="")
+    settings_json = db.Column(db.Text, default="{}")
+
     history = db.relationship("ReadingHistory", backref="user", cascade="all, delete-orphan", lazy="dynamic")
     likes = db.relationship("LikedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic")
     bookmarks = db.relationship("SavedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic")
@@ -24,11 +33,23 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
+        try:
+            settings = json.loads(self.settings_json or "{}")
+        except Exception:
+            settings = {}
         return {
             "id": self.id,
             "username": self.username,
+            "display_name": self.display_name or self.username,
             "email": self.email,
             "role": self.role,
+            "avatar_url": self.avatar_url or "",
+            "bio": self.bio or "",
+            "location": self.location or "",
+            "website": self.website or "",
+            "github_url": self.github_url or "",
+            "linkedin_url": self.linkedin_url or "",
+            "settings": settings,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
@@ -70,13 +91,19 @@ class Series(db.Model):
     slug = db.Column(db.String(200), unique=True, nullable=False, index=True)
     description = db.Column(db.Text, default="")
     cover_image = db.Column(db.String(255), default="")
+    level = db.Column(db.String(50), default="beginner")  # "beginner" | "intermediate" | "advanced"
+    status = db.Column(db.String(50), default="updating")  # "updating" | "completed" | "upcoming"
+    is_published = db.Column(db.Boolean, default=True)  # Hiển thị hoặc ẩn series với độc giả
+    upcoming_lessons = db.Column(db.Text, default="[]")  # JSON string danh sách bài học dự kiến sắp ra mắt
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     posts = db.relationship("Post", backref="series", lazy="dynamic")
     videos = db.relationship("Video", backref="series", lazy="dynamic")
 
     def to_dict(self, include_items: bool = False):
+        import json
         published_posts = self.posts.filter_by(status="published").order_by(Post.order_index.asc()).all()
+        all_posts = self.posts.order_by(Post.order_index.asc()).all()
         total_reading_time = sum([
             max(1, round((len(p.content.split()) if p.content else 0) / 200))
             for p in published_posts
@@ -97,12 +124,25 @@ class Series(db.Model):
             if dates:
                 latest_date = max(dates)
 
+        parsed_upcoming = []
+        if self.upcoming_lessons:
+            try:
+                parsed_upcoming = json.loads(self.upcoming_lessons)
+                if not isinstance(parsed_upcoming, list):
+                    parsed_upcoming = []
+            except Exception:
+                parsed_upcoming = []
+
         res = {
             "id": self.id,
             "title": self.title,
             "slug": self.slug,
             "description": self.description,
             "cover_image": self.cover_image,
+            "level": self.level or "beginner",
+            "status": self.status or "updating",
+            "is_published": self.is_published if self.is_published is not None else True,
+            "upcoming_lessons": parsed_upcoming,
             "total_posts": len(published_posts),
             "total_videos": self.videos.count(),
             "total_reading_time": total_reading_time,
@@ -112,6 +152,7 @@ class Series(db.Model):
         }
         if include_items:
             res["posts"] = [p.to_dict(include_content=False) for p in published_posts]
+            res["all_posts"] = [p.to_dict(include_content=False) for p in all_posts]
             res["videos"] = [v.to_dict() for v in self.videos.order_by(Video.order_index.asc())]
         return res
 
@@ -176,6 +217,7 @@ class Video(db.Model):
     __tablename__ = "videos"
     
     id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(255), unique=True, index=True, nullable=True)
     series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=True)
     order_index = db.Column(db.Integer, default=0)
     title = db.Column(db.String(255), nullable=False)
@@ -183,13 +225,27 @@ class Video(db.Model):
     platform = db.Column(db.String(50), default="youtube")  # "youtube" | "vimeo" | "custom"
     video_url = db.Column(db.String(500), nullable=False)
     thumbnail_url = db.Column(db.String(500), default="")
+    duration = db.Column(db.String(20), default="")  # e.g. "12:45"
+    status = db.Column(db.String(20), default="published")  # "published" | "draft"
+    language = db.Column(db.String(10), default="vi")  # "vi" | "en"
+    featured = db.Column(db.Boolean, default=False)
+    view_count = db.Column(db.Integer, default=0)
+    chapters_json = db.Column(db.Text, default="[]")
+    related_post_id = db.Column(db.Integer, nullable=True)
     category = db.Column(db.String(100), default="Lập trình")
     sort_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
+        import json
+        try:
+            chapters = json.loads(self.chapters_json or "[]")
+        except Exception:
+            chapters = []
+
         return {
             "id": self.id,
+            "slug": self.slug or f"video-{self.id}",
             "series_id": self.series_id,
             "order_index": self.order_index,
             "title": self.title,
@@ -197,6 +253,13 @@ class Video(db.Model):
             "platform": self.platform,
             "video_url": self.video_url,
             "thumbnail_url": self.thumbnail_url,
+            "duration": self.duration or "",
+            "status": self.status or "published",
+            "language": self.language or "vi",
+            "featured": bool(self.featured),
+            "view_count": self.view_count or 0,
+            "chapters": chapters,
+            "related_post_id": self.related_post_id,
             "category": self.category,
             "sort_order": self.sort_order,
             "created_at": self.created_at.isoformat() if self.created_at else None
@@ -295,7 +358,8 @@ class Album(db.Model):
             "cover_image": self.cover_image,
             "photo_count": self.photos.count(),
             "event_date": self.event_date.isoformat() if self.event_date else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "preview_photos": [p.photo_url for p in self.photos.order_by(AlbumPhoto.sort_order.asc()).limit(4)]
         }
         if include_photos:
             res["photos"] = [p.to_dict() for p in self.photos.order_by(AlbumPhoto.sort_order.asc())]
@@ -401,6 +465,7 @@ class LikedPost(db.Model):
             "user_id": self.user_id,
             "post_id": self.post_id,
             "liked_at": self.liked_at.isoformat() if self.liked_at else None,
+            "created_at": self.liked_at.isoformat() if self.liked_at else None,
             "post": self.post.to_dict(include_content=False) if self.post else None
         }
 
@@ -420,6 +485,7 @@ class SavedPost(db.Model):
             "user_id": self.user_id,
             "post_id": self.post_id,
             "saved_at": self.saved_at.isoformat() if self.saved_at else None,
+            "created_at": self.saved_at.isoformat() if self.saved_at else None,
             "post": self.post.to_dict(include_content=False) if self.post else None
         }
 

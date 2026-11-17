@@ -9,7 +9,8 @@ import {
   RefreshCw,
   UserCheck,
   Layers,
-  Camera
+  Camera,
+  Video as VideoIcon
 } from 'lucide-react';
 import { profileApi, postApi, mediaApi, contentApi, seriesApi } from '../../services/api';
 import { useApp } from '../../contexts/AppContext';
@@ -23,6 +24,7 @@ import AlbumsTab from './components/AlbumsTab';
 import PostsTab from './components/PostsTab';
 import MediaTab from './components/MediaTab';
 import MessagesTab from './components/MessagesTab';
+import VideosTab from './components/VideosTab';
 
 export default function AdminDashboard() {
   const { user, t } = useApp();
@@ -33,6 +35,7 @@ export default function AdminDashboard() {
   const [posts, setPosts] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [albumsList, setAlbumsList] = useState([]);
+  const [videosList, setVideosList] = useState([]);
   const [mediaList, setMediaList] = useState([]);
   const [messages, setMessages] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -47,10 +50,10 @@ export default function AdminDashboard() {
     fetchAdminData();
   }, [user]);
 
-  const fetchAdminData = async () => {
-    setLoading(true);
+  const fetchAdminData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const [sRes, pRes, mRes, msgRes, projRes, profRes, seriesRes, albumsRes] = await Promise.all([
+      const [sRes, pRes, mRes, msgRes, projRes, profRes, seriesRes, albumsRes, vRes] = await Promise.all([
         profileApi.getAdminStats(),
         postApi.getAdminPosts(),
         mediaApi.getMediaList(),
@@ -58,7 +61,8 @@ export default function AdminDashboard() {
         contentApi.getProjects({ admin: true }),
         profileApi.getProfile(),
         seriesApi.getSeriesList(),
-        mediaApi.getAlbums()
+        mediaApi.getAlbums(),
+        contentApi.getVideos({ admin: true })
       ]);
 
       const sData = sRes?.data || sRes;
@@ -69,6 +73,7 @@ export default function AdminDashboard() {
       const profData = profRes?.data || profRes;
       const seriesData = seriesRes?.data || seriesRes;
       const albumsData = albumsRes?.data || albumsRes;
+      const vData = vRes?.data || vRes;
 
       if (sData) setStats(sData);
       if (pData?.items) setPosts(pData.items);
@@ -79,10 +84,11 @@ export default function AdminDashboard() {
       if (profData) setProfile(profData);
       if (Array.isArray(seriesData)) setSeriesList(seriesData);
       if (Array.isArray(albumsData)) setAlbumsList(albumsData);
+      if (Array.isArray(vData)) setVideosList(vData);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -117,7 +123,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs navigation */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 mb-8 overflow-x-auto pb-px">
+      <div className="flex items-center gap-1.5 border-b border-zinc-200 dark:border-zinc-800 mb-8 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
           onClick={() => setActiveTab('stats')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
@@ -179,6 +185,18 @@ export default function AdminDashboard() {
         </button>
 
         <button
+          onClick={() => setActiveTab('videos')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
+            activeTab === 'videos'
+              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <VideoIcon className="w-4 h-4" />
+          {t('admin.tab_videos') || 'Video Showcase'} ({videosList.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('posts')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
             activeTab === 'posts'
@@ -223,27 +241,36 @@ export default function AdminDashboard() {
       )}
 
       {activeTab === 'projects' && (
-        <ProjectsTab projects={projects} onProjectsUpdated={fetchAdminData} />
+        <ProjectsTab projects={projects} onProjectsUpdated={() => fetchAdminData(true)} />
       )}
 
       {activeTab === 'series' && (
-        <SeriesTab onSeriesUpdated={fetchAdminData} />
+        <SeriesTab allPosts={posts} onSeriesUpdated={() => fetchAdminData(true)} />
       )}
 
       {activeTab === 'albums' && (
-        <AlbumsTab albums={albumsList} onAlbumsUpdated={fetchAdminData} />
+        <AlbumsTab albums={albumsList} onAlbumsUpdated={() => fetchAdminData(true)} />
+      )}
+
+      {activeTab === 'videos' && (
+        <VideosTab 
+          videos={videosList} 
+          seriesList={seriesList} 
+          posts={posts} 
+          onRefresh={() => fetchAdminData(true)} 
+        />
       )}
 
       {activeTab === 'posts' && (
-        <PostsTab posts={posts} onPostsUpdated={fetchAdminData} />
+        <PostsTab posts={posts} onPostsUpdated={() => fetchAdminData(true)} />
       )}
 
       {activeTab === 'media' && (
-        <MediaTab mediaList={mediaList} onMediaUpdated={fetchAdminData} />
+        <MediaTab mediaList={mediaList} onMediaUpdated={() => fetchAdminData(true)} />
       )}
 
       {activeTab === 'messages' && (
-        <MessagesTab messages={messages} onMessagesUpdated={fetchAdminData} />
+        <MessagesTab messages={messages} onMessagesUpdated={() => fetchAdminData(true)} />
       )}
     </div>
   );

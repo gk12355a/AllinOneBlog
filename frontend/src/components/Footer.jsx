@@ -15,20 +15,20 @@ export default function Footer() {
             <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">
               AllinOneBlog.dev
             </span>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-              Personal Portfolio & Modern Engineering Blog.
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">
+              {t('footer.subtitle')}
             </p>
           </div>
 
           {/* Social Links */}
-          <div className="flex items-center space-x-5 text-zinc-500 dark:text-zinc-400">
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+          <div className="flex items-center space-x-5 text-zinc-600 dark:text-zinc-300">
+            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="GitHub">
               <GithubIcon className="w-5 h-5" />
             </a>
-            <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+            <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="LinkedIn">
               <LinkedinIcon className="w-5 h-5" />
             </a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="YouTube">
               <YoutubeIcon className="w-5 h-5" />
             </a>
             <a href="/rss.xml" target="_blank" rel="noreferrer" className="hover:text-orange-500 transition-colors" title="RSS Feed">
@@ -37,10 +37,10 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
-          <p>© {new Date().getFullYear()} AllinOneBlog. Built with React & Flask.</p>
+        <div className="mt-8 pt-8 border-t border-zinc-200/80 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+          <p>© {new Date().getFullYear()} AllinOneBlog. {t('footer.built_with')}</p>
           <p className="flex items-center gap-1 mt-2 sm:mt-0">
-            Engineered with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> & Clean Architecture
+            {t('footer.engineered_with')} <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> & Clean Architecture
           </p>
         </div>
       </div>

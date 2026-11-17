@@ -8,7 +8,7 @@ export default function StatsTab({ stats }) {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
             {t('admin.total_views')}
@@ -27,10 +27,18 @@ export default function StatsTab({ stats }) {
         </div>
         <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-            {t('admin.projects_videos')}
+            {t('admin.projects_count') || 'Dự án nổi bật'}
           </span>
           <p className="text-3xl font-extrabold mt-2 text-zinc-900 dark:text-zinc-100">
-            {stats.total_projects} / {stats.total_videos}
+            {stats.total_projects ?? 0}
+          </p>
+        </div>
+        <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
+          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+            {t('admin.videos_count') || 'Video Showcase'}
+          </span>
+          <p className="text-3xl font-extrabold mt-2 text-purple-600 dark:text-purple-400">
+            {stats.total_videos ?? 0}
           </p>
         </div>
         <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">

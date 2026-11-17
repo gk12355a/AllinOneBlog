@@ -29,11 +29,13 @@ export default function BlogDetail() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const previewToken = searchParams.get('preview');
-  const { user, t } = useApp();
+  const { user, readingFontSize, t } = useApp();
   const [post, setPost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReaderMode, setIsReaderMode] = useState(false);
-  const [fontSize, setFontSize] = useState(() => localStorage.getItem('blog_font_size') || 'base');
+  const [fontSize, setFontSize] = useState(() => {
+    return localStorage.getItem('blog_font_size') || (readingFontSize === 'small' ? 'sm' : readingFontSize === 'large' ? 'lg' : 'base');
+  });
   const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('blog_font_family') || 'sans');
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -60,6 +62,13 @@ export default function BlogDetail() {
   }, [post?.content, post?.content_type]);
 
   const fetchedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (readingFontSize) {
+      const mapped = readingFontSize === 'small' ? 'sm' : readingFontSize === 'large' ? 'lg' : 'base';
+      setFontSize(mapped);
+    }
+  }, [readingFontSize]);
 
   useEffect(() => {
     // Ngăn React StrictMode kích hoạt 2 lần trong 1 lần vào trang

@@ -68,9 +68,12 @@ class WatermarkService:
                 x = base.size[0] - textwidth - margin
                 y = base.size[1] - textheight - margin
                 
-                # Vẽ bóng mờ và chữ watermark trắng với độ trong suốt 170/255
-                draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0, 100))
-                draw.text((x, y), text, font=font, fill=(255, 255, 255, 170))
+                # Vẽ khung nền mờ nhẹ (subtle dark pill) và chữ bản quyền sắc nét, đọc rõ trên cả nền trắng lẫn nền tối
+                pad_x = 8
+                pad_y = 4
+                pill_box = (x - pad_x, y - pad_y, x + textwidth + pad_x, y + textheight + pad_y)
+                draw.rounded_rectangle(pill_box, radius=4, fill=(0, 0, 0, 95))
+                draw.text((x, y), text, font=font, fill=(255, 255, 255, 230))
                 
                 # Hợp nhất ảnh và lưu
                 out = Image.alpha_composite(base, txt_layer)

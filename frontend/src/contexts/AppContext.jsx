@@ -29,6 +29,17 @@ export const AppProvider = ({ children }) => {
     return urlParams.get('lang') || localStorage.getItem('lang') || 'vi';
   });
 
+  // Reading Font Size State (small / medium / large)
+  const [readingFontSize, setReadingFontSize] = useState(() => {
+    const saved = localStorage.getItem('reading_font_size');
+    return saved || 'medium';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('reading_font_size', readingFontSize);
+    document.documentElement.setAttribute('data-reading-size', readingFontSize);
+  }, [readingFontSize]);
+
   const changeLanguage = (newLang) => {
     setLang(newLang);
     localStorage.setItem('lang', newLang);
@@ -64,6 +75,15 @@ export const AppProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUserData = (updatedUser) => {
+    const merged = { ...user, ...updatedUser };
+    localStorage.setItem('user', JSON.stringify(merged));
+    setUser(merged);
+    if (merged?.settings?.reading_font_size) {
+      setReadingFontSize(merged.settings.reading_font_size);
+    }
+  };
+
   // 4. Toast Notifications System
   const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' | 'info' }
 
@@ -91,13 +111,17 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       theme,
+      setTheme,
       toggleTheme,
       lang,
       changeLanguage,
+      readingFontSize,
+      setReadingFontSize,
       t,
       user,
       loginUser,
       logoutUser,
+      updateUserData,
       toast,
       showToast,
       isSpotlightOpen,

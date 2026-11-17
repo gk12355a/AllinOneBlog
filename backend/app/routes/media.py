@@ -116,7 +116,24 @@ def get_album_detail(slug: str):
     album = Album.query.filter_by(slug=slug).first()
     if not album:
         return api_response(success=False, message="Album not found.", status_code=404)
-    return api_response(success=True, data=album.to_dict(include_photos=True))
+    data = album.to_dict(include_photos=True)
+
+    prev_album = Album.query.filter(Album.created_at < album.created_at).order_by(Album.created_at.desc()).first()
+    next_album = Album.query.filter(Album.created_at > album.created_at).order_by(Album.created_at.asc()).first()
+    data["prev_album"] = {
+        "title": prev_album.title,
+        "slug": prev_album.slug,
+        "cover_image": prev_album.cover_image,
+        "photo_count": prev_album.photos.count()
+    } if prev_album else None
+    data["next_album"] = {
+        "title": next_album.title,
+        "slug": next_album.slug,
+        "cover_image": next_album.cover_image,
+        "photo_count": next_album.photos.count()
+    } if next_album else None
+
+    return api_response(success=True, data=data)
 
 @media_bp.route("/admin/albums", methods=["POST"])
 @admin_required()

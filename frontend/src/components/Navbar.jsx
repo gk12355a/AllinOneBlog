@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Moon, Search, Globe, User, LogOut, Bookmark, ShieldCheck, Menu, X } from 'lucide-react';
+import { Sun, Moon, Search, Globe, User, LogOut, Bookmark, ShieldCheck, Menu, X, Settings } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 
 export default function Navbar() {
   const { theme, toggleTheme, lang, changeLanguage, t, user, logoutUser, setIsSpotlightOpen } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -18,6 +19,34 @@ export default function Navbar() {
     { name: t('nav.videos'), path: '/videos' },
     { name: t('nav.albums'), path: '/album' },
   ];
+
+  // Close user dropdown on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsUserMenuOpen(false);
+      }
+    };
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  // Close menu on route navigation
+  useEffect(() => {
+    setIsUserMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logoutUser();
@@ -92,51 +121,88 @@ export default function Navbar() {
 
           {/* User Account Menu / Login */}
           {user ? (
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
+                type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-indigo-500/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                title={user.username}
               >
-                <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
                   {user.username.charAt(0)}
                 </div>
               </button>
 
               {/* User Dropdown */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl py-1.5 z-50 animate-fade-in text-sm">
-                  <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800/60">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{user.username}</p>
-                    <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                <div className="absolute right-0 mt-2.5 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in text-sm">
+                  <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{user.username}</p>
+                      <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded font-bold ${
+                        user.role === 'admin'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{user.email}</p>
                   </div>
 
-                  <Link
-                    to="/my-library"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  >
-                    <Bookmark className="w-4 h-4 text-blue-500" />
-                    <span>{t('nav.library')}</span>
-                  </Link>
-
-                  {user.role === 'admin' && (
+                  <div className="p-1.5 space-y-0.5">
                     <Link
-                      to="/admin"
+                      to="/my-library"
                       onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                        location.pathname === '/library' || location.pathname === '/my-library'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+                      }`}
                     >
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                      <span>{t('nav.admin')}</span>
+                      <Bookmark className="w-4 h-4 text-indigo-500" />
+                      <span>{t('nav.library')}</span>
                     </Link>
-                  )}
 
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-left"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>{t('nav.logout')}</span>
-                  </button>
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                        location.pathname.startsWith('/settings')
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+                      }`}
+                    >
+                      <Settings className="w-4 h-4 text-zinc-500" />
+                      <span>{t('nav.settings') || 'Cài đặt'}</span>
+                    </Link>
+
+                    {user.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                          location.pathname.startsWith('/admin')
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t('nav.admin')}</span>
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800 p-1.5">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-left font-medium transition text-xs sm:text-sm"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>{t('nav.logout')}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
