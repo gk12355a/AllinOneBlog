@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { LogIn, UserPlus, Lock, Mail, User, AlertCircle } from 'lucide-react';
-import { authApi } from '../services/api';
-import { useApp } from '../contexts/AppContext';
+import { authApi } from '../../services/api';
+import { useApp } from '../../contexts/AppContext';
 
 export default function Login() {
   const { loginUser, t } = useApp();

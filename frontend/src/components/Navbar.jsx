@@ -62,10 +62,10 @@ export default function Navbar() {
           <button
             onClick={() => setIsSpotlightOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg transition-colors cursor-pointer"
-            title="Nhấn Ctrl+K để tìm kiếm nhanh"
+            title={t('nav.search')}
           >
             <Search className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Tìm kiếm</span>
+            <span className="hidden sm:inline">{lang === 'en' ? 'Search' : 'Tìm kiếm'}</span>
             <kbd className="hidden sm:inline px-1 py-0.5 text-[10px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono">
               ⌘K
             </kbd>

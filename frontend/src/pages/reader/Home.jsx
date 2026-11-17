@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Download, Mail, ExternalLink, Sparkles, Briefcase, Code, Terminal, CheckCircle2 } from 'lucide-react';
-import { GithubIcon } from '../components/SocialIcons';
-import api from '../services/api';
-import { useApp } from '../contexts/AppContext';
+import { GithubIcon } from '../../components/SocialIcons';
+import api from '../../services/api';
+import { useApp } from '../../contexts/AppContext';
 
 export default function Home() {
   const { t } = useApp();
@@ -57,11 +57,11 @@ export default function Home() {
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 font-medium">
-            {t('home.headline') || profile?.headline || 'DevOps Engineer | Cloud & Infrastructure Specialist'}
+            {profile?.headline || t('home.headline') || 'DevOps Engineer | Cloud & Infrastructure Specialist'}
           </p>
 
-          <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xl text-sm sm:text-base">
-            {t('home.bio') || profile?.bio}
+          <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xl text-sm sm:text-base whitespace-pre-line">
+            {profile?.bio || t('home.bio')}
           </p>
 
           {/* Action Buttons */}
@@ -185,7 +185,7 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">
-                    {proj.demo_link && (
+                    {proj.show_demo && proj.demo_link && (
                       <a
                         href={proj.demo_link}
                         target="_blank"
@@ -196,7 +196,7 @@ export default function Home() {
                         <span>Live Demo</span>
                       </a>
                     )}
-                    {proj.github_link && (
+                    {proj.show_github && proj.github_link && (
                       <a
                         href={proj.github_link}
                         target="_blank"

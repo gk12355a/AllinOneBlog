@@ -1,10 +1,20 @@
 from flask import Blueprint, request
+from flask_jwt_extended import verify_jwt_in_request, get_jwt
 from app.extensions import db, limiter
 from app.models import Project, Video, Message, Certificate
 from app.services.ai_search_service import SearchEngineService
 from app.utils.helpers import api_response, admin_required
 
 content_bp = Blueprint("content", __name__)
+
+def is_admin_request() -> bool:
+    """Helper to safely determine if current request is authenticated as admin."""
+    try:
+        verify_jwt_in_request(optional=True)
+        claims = get_jwt()
+        return bool(claims and claims.get("role") == "admin")
+    except Exception:
+        return False
 
 # --- 1. PROJECTS ---
 
@@ -15,14 +25,17 @@ def get_projects():
     if featured in ["true", "1"]:
         query = query.filter_by(is_featured=True)
     projects = query.order_by(Project.sort_order.asc(), Project.created_at.desc()).all()
-    return api_response(success=True, data=[p.to_dict() for p in projects])
+    # If explicitly requested with ?admin=true by an authenticated admin, return full data
+    is_admin = request.args.get("admin", "").lower() in ["true", "1"] and is_admin_request()
+    return api_response(success=True, data=[p.to_dict(is_admin=is_admin) for p in projects])
 
 @content_bp.route("/projects/<int:project_id>", methods=["GET"])
 def get_project_detail(project_id: int):
     project = Project.query.get(project_id)
     if not project:
         return api_response(success=False, message="Project not found.", status_code=404)
-    return api_response(success=True, data=project.to_dict())
+    is_admin = request.args.get("admin", "").lower() in ["true", "1"] and is_admin_request()
+    return api_response(success=True, data=project.to_dict(is_admin=is_admin))
 
 @content_bp.route("/projects", methods=["POST"])
 @admin_required()
@@ -40,6 +53,8 @@ def create_project():
         image_url=data.get("image_url", "").strip(),
         demo_link=data.get("demo_link", "").strip(),
         github_link=data.get("github_link", "").strip(),
+        show_demo=bool(data.get("show_demo", True)),
+        show_github=bool(data.get("show_github", True)),
         tech_stack=tech,
         is_featured=bool(data.get("is_featured", False)),
         sort_order=data.get("sort_order", 0)
@@ -47,7 +62,7 @@ def create_project():
     db.session.add(project)
     db.session.commit()
 
-    return api_response(success=True, data=project.to_dict(), message="Project created successfully.", status_code=201)
+    return api_response(success=True, data=project.to_dict(is_admin=True), message="Project created successfully.", status_code=201)
 
 @content_bp.route("/projects/<int:project_id>", methods=["PUT"])
 @admin_required()
@@ -67,6 +82,10 @@ def update_project(project_id: int):
         project.demo_link = data["demo_link"].strip()
     if "github_link" in data:
         project.github_link = data["github_link"].strip()
+    if "show_demo" in data:
+        project.show_demo = bool(data["show_demo"])
+    if "show_github" in data:
+        project.show_github = bool(data["show_github"])
     if "tech_stack" in data:
         project.tech_stack = ",".join([t.strip() for t in data["tech_stack"]]) if isinstance(data["tech_stack"], list) else data["tech_stack"].strip()
     if "is_featured" in data:
@@ -75,7 +94,7 @@ def update_project(project_id: int):
         project.sort_order = int(data["sort_order"])
 
     db.session.commit()
-    return api_response(success=True, data=project.to_dict(), message="Project updated successfully.")
+    return api_response(success=True, data=project.to_dict(is_admin=True), message="Project updated successfully.")
 
 @content_bp.route("/projects/<int:project_id>", methods=["DELETE"])
 @admin_required()

@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { Clock, Eye, Share2, Bookmark, BookmarkCheck, Heart, ArrowLeft, ArrowRight, SidebarClose, SidebarOpen, Type } from 'lucide-react';
-import api, { userLibraryApi } from '../services/api';
-import TableOfContents from '../components/TableOfContents';
-import ReactionBar from '../components/ReactionBar';
-import AudioPlayer from '../components/AudioPlayer';
-import CodeBlock from '../components/CodeBlock';
-import CommentSection from '../components/CommentSection';
-import ShareButtons from '../components/ShareButtons';
-import { useApp } from '../contexts/AppContext';
+import {
+  Clock,
+  Eye,
+  Share2,
+  Bookmark,
+  BookmarkCheck,
+  Heart,
+  ArrowLeft,
+  ArrowRight,
+  SidebarClose,
+  SidebarOpen,
+  Type,
+  BookOpen
+} from 'lucide-react';
+import api, { userLibraryApi } from '../../services/api';
+import TableOfContents from '../../components/TableOfContents';
+import ReactionBar from '../../components/ReactionBar';
+import AudioPlayer from '../../components/AudioPlayer';
+import CodeBlock from '../../components/CodeBlock';
+import CommentSection from '../../components/CommentSection';
+import ShareButtons from '../../components/ShareButtons';
+import { useApp } from '../../contexts/AppContext';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 export default function BlogDetail() {
   const { slug } = useParams();
@@ -27,6 +42,22 @@ export default function BlogDetail() {
     if (!post?.content) return false;
     return /^(#{2,3})\s+(.+)$/m.test(post.content);
   }, [post?.content]);
+
+  const renderedContent = React.useMemo(() => {
+    if (!post?.content) return '';
+    if (post.content_type === 'richtext') {
+      return DOMPurify.sanitize(post.content);
+    }
+
+    const renderer = new marked.Renderer();
+    renderer.heading = ({ text, depth }) => {
+      const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      return `<h${depth} id="${id}" class="scroll-mt-24 font-bold tracking-tight">${text}</h${depth}>`;
+    };
+
+    const rawHtml = marked.parse(post.content, { renderer, breaks: true, gfm: true });
+    return DOMPurify.sanitize(rawHtml);
+  }, [post?.content, post?.content_type]);
 
   const fetchedRef = React.useRef(false);
 
@@ -288,6 +319,36 @@ export default function BlogDetail() {
         </div>
       </div>
 
+      {/* Series Navigation Banner (If article belongs to a series) */}
+      {post.series && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 rounded-lg bg-blue-600 text-white shrink-0">
+              <BookOpen className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                Bài {post.order_index ? post.order_index + 1 : 1} trong chuỗi bài viết:
+              </p>
+              <Link
+                to={`/series/${post.series.slug}`}
+                className="text-sm font-bold text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition"
+              >
+                {post.series.title}
+              </Link>
+            </div>
+          </div>
+
+          <Link
+            to={`/series/${post.series.slug}`}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+          >
+            <span>Xem toàn bộ lộ trình</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* Main Layout Grid */}
       <div className={`grid gap-12 ${isReaderMode || !hasHeadings ? 'max-w-3xl mx-auto w-full' : 'grid-cols-1 lg:grid-cols-4'}`}>
         {/* Article Content Body */}
@@ -329,15 +390,10 @@ export default function BlogDetail() {
           )}
 
           {/* Content Rendering */}
-          <div className={`prose dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 ${fontClass} ${sizeClass}`}>
-            {post.content_type === 'richtext' ? (
-              <div dangerouslySetInnerHTML={{ __html: post.content }} />
-            ) : (
-              <div className="space-y-4 whitespace-pre-line leading-relaxed">
-                {post.content}
-              </div>
-            )}
-          </div>
+          <div
+            className={`markdown-content max-w-none text-zinc-800 dark:text-zinc-200 ${fontClass} ${sizeClass}`}
+            dangerouslySetInnerHTML={{ __html: renderedContent }}
+          />
 
           {/* Reactions Bar & Bottom Share Toolkit */}
           <div className="pt-8 border-t border-zinc-200 dark:border-zinc-800 space-y-4">

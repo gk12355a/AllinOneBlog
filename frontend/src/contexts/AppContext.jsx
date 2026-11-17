@@ -64,7 +64,17 @@ export const AppProvider = ({ children }) => {
     setUser(null);
   };
 
-  // 4. Spotlight Modal (Ctrl+K)
+  // 4. Toast Notifications System
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' | 'info' }
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+
+  // 5. Spotlight Modal (Ctrl+K)
   const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
 
   useEffect(() => {
@@ -88,10 +98,19 @@ export const AppProvider = ({ children }) => {
       user,
       loginUser,
       logoutUser,
+      toast,
+      showToast,
       isSpotlightOpen,
       setIsSpotlightOpen
     }}>
       {children}
+      {/* Toast Overlay */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-2xl border border-zinc-700 dark:border-zinc-300 text-xs font-semibold animate-fade-in transition-all">
+          <span className={`w-2 h-2 rounded-full ${toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </AppContext.Provider>
   );
 };

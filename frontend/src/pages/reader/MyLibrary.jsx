@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { History, Heart, Bookmark, Trash2, ArrowRight, BookOpen, Clock } from 'lucide-react';
-import { userLibraryApi } from '../services/api';
-import { useApp } from '../contexts/AppContext';
+import { userLibraryApi } from '../../services/api';
+import { useApp } from '../../contexts/AppContext';
 
 export default function MyLibrary() {
   const { user, t } = useApp();

@@ -76,18 +76,42 @@ class Series(db.Model):
     videos = db.relationship("Video", backref="series", lazy="dynamic")
 
     def to_dict(self, include_items: bool = False):
+        published_posts = self.posts.filter_by(status="published").order_by(Post.order_index.asc()).all()
+        total_reading_time = sum([
+            max(1, round((len(p.content.split()) if p.content else 0) / 200))
+            for p in published_posts
+        ])
+        # Aggregate tags across posts
+        all_tags = set()
+        for p in published_posts:
+            if p.tags:
+                for t in p.tags.split(","):
+                    clean_t = t.strip()
+                    if clean_t:
+                        all_tags.add(clean_t.lower())
+
+        # Determine latest updated time
+        latest_date = self.created_at
+        if published_posts:
+            dates = [p.updated_at or p.created_at for p in published_posts if p.updated_at or p.created_at]
+            if dates:
+                latest_date = max(dates)
+
         res = {
             "id": self.id,
             "title": self.title,
             "slug": self.slug,
             "description": self.description,
             "cover_image": self.cover_image,
-            "total_posts": self.posts.filter_by(status="published").count(),
+            "total_posts": len(published_posts),
             "total_videos": self.videos.count(),
+            "total_reading_time": total_reading_time,
+            "tags": sorted(list(all_tags)),
+            "updated_at": latest_date.isoformat() if latest_date else (self.created_at.isoformat() if self.created_at else None),
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
         if include_items:
-            res["posts"] = [p.to_dict(include_content=False) for p in self.posts.filter_by(status="published").order_by(Post.order_index.asc())]
+            res["posts"] = [p.to_dict(include_content=False) for p in published_posts]
             res["videos"] = [v.to_dict() for v in self.videos.order_by(Video.order_index.asc())]
         return res
 
@@ -120,13 +144,21 @@ class Post(db.Model):
         data = {
             "id": self.id,
             "series_id": self.series_id,
+            "series": {
+                "id": self.series.id,
+                "title": self.series.title,
+                "slug": self.series.slug,
+                "total_posts": self.series.posts.filter_by(status="published").count()
+            } if self.series else None,
             "order_index": self.order_index,
             "lang": self.lang,
+            "language": self.lang,
             "title": self.title,
             "slug": self.slug,
             "excerpt": self.excerpt,
             "content_type": self.content_type,
             "cover_image": self.cover_image,
+            "thumbnail": self.cover_image,
             "status": self.status,
             "tags": tags_list,
             "views": self.views,
@@ -179,26 +211,35 @@ class Project(db.Model):
     image_url = db.Column(db.String(500), default="")
     demo_link = db.Column(db.String(500), default="")
     github_link = db.Column(db.String(500), default="")
+    show_demo = db.Column(db.Boolean, default=True)
+    show_github = db.Column(db.Boolean, default=True)
     tech_stack = db.Column(db.String(255), default="")  # Phân tách bởi dấu phẩy
     is_featured = db.Column(db.Boolean, default=False, index=True)
     sort_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def to_dict(self):
-        return {
+    def to_dict(self, is_admin: bool = False):
+        # DevTools & security protection: do not leak raw links if author has disabled visibility
+        demo = self.demo_link if (is_admin or self.show_demo) else ""
+        github = self.github_link if (is_admin or self.show_github) else ""
+
+        data = {
             "id": self.id,
             "title": self.title,
             "description": self.description,
             "image_url": self.image_url,
-            "demo_link": self.demo_link,
-            "github_link": self.github_link,
+            "demo_link": demo,
+            "github_link": github,
+            "show_demo": self.show_demo if self.show_demo is not None else True,
+            "show_github": self.show_github if self.show_github is not None else True,
             "tech_stack": [t.strip() for t in self.tech_stack.split(",") if t.strip()] if self.tech_stack else [],
             "is_featured": self.is_featured,
             "sort_order": self.sort_order,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+        return data
 
 class Certificate(db.Model):
     __tablename__ = "certificates"

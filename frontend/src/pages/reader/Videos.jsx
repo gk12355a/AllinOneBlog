@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Video as VideoIcon, Play, ExternalLink } from 'lucide-react';
-import api from '../services/api';
+import api from '../../services/api';
 
 export default function Videos() {
   const [videos, setVideos] = useState([]);

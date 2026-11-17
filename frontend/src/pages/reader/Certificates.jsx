@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Award, ExternalLink, FileText, CheckCircle, Calendar, Shield, Sparkles, X, ZoomIn } from 'lucide-react';
-import { contentApi } from '../services/api';
-import { useApp } from '../contexts/AppContext';
+import { contentApi } from '../../services/api';
+import { useApp } from '../../contexts/AppContext';
 
 export default function Certificates() {
   const { t } = useApp();

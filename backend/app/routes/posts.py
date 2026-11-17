@@ -42,17 +42,23 @@ def get_posts():
     tag = request.args.get("tag", "").strip()
     series_id = request.args.get("series_id", type=int)
     lang = request.args.get("lang", "").strip()
+    sort_by = request.args.get("sort", "newest").strip().lower()
 
     query = Post.query.filter_by(status="published")
 
-    if lang:
+    if lang and lang != "all":
         query = query.filter_by(lang=lang)
     if series_id:
         query = query.filter_by(series_id=series_id)
     if tag:
         query = query.filter(Post.tags.ilike(f"%{tag}%"))
 
-    pagination = query.order_by(Post.created_at.desc()).paginate(page=page, per_page=limit, error_out=False)
+    if sort_by in ("views", "popular", "most_viewed"):
+        query = query.order_by(Post.views.desc(), Post.created_at.desc())
+    else:
+        query = query.order_by(Post.created_at.desc())
+
+    pagination = query.paginate(page=page, per_page=limit, error_out=False)
     
     posts_data = [p.to_dict(include_content=False) for p in pagination.items]
     return api_response(success=True, data={
@@ -246,7 +252,7 @@ def get_tags():
     for p in posts:
         if p.tags:
             for t in p.tags.split(","):
-                t = t.strip()
+                t = t.strip().lower()
                 if t:
                     tag_counts[t] = tag_counts.get(t, 0) + 1
     
@@ -257,7 +263,15 @@ def get_tags():
 @admin_required()
 def get_admin_posts():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    return api_response(success=True, data=[p.to_dict(include_content=False) for p in posts])
+    return api_response(success=True, data=[p.to_dict(include_content=True) for p in posts])
+
+@posts_bp.route("/admin/posts/<int:post_id>", methods=["GET"])
+@admin_required()
+def get_admin_post(post_id: int):
+    post = Post.query.get(post_id)
+    if not post:
+        return api_response(success=False, message="Post not found.", status_code=404)
+    return api_response(success=True, data=post.to_dict(include_content=True))
 
 @posts_bp.route("/posts", methods=["POST"])
 @posts_bp.route("/admin/posts", methods=["POST"])
@@ -328,16 +342,16 @@ def update_post(post_id: int):
         content_type = data.get("content_type", post.content_type)
         post.content = sanitize_html(data["content"]) if content_type == "richtext" else data["content"]
         post.content_type = content_type
-    if "cover_image" in data:
-        post.cover_image = data["cover_image"].strip()
+    if "cover_image" in data or "thumbnail" in data:
+        post.cover_image = (data.get("cover_image") or data.get("thumbnail") or "").strip()
     if "status" in data:
         if post.status != "published" and data["status"] == "published":
             post.published_at = datetime.utcnow()
         post.status = data["status"]
     if "tags" in data:
         post.tags = ",".join([t.strip() for t in data["tags"]]) if isinstance(data["tags"], list) else data["tags"].strip()
-    if "lang" in data:
-        post.lang = data["lang"]
+    if "lang" in data or "language" in data:
+        post.lang = data.get("lang") or data.get("language")
     if "series_id" in data:
         post.series_id = data["series_id"]
     if "order_index" in data:
