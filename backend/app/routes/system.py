@@ -31,10 +31,10 @@ def health_check():
 
 @system_bp.route("/sitemap.xml", methods=["GET"])
 def sitemap():
-    """Tự động sinh dynamic XML Sitemap cho SEO."""
+    """Tự động sinh dynamic XML Sitemap cho SEO. CHỈ chứa bài viết công khai (Public) để chống rò rỉ Stealth."""
     base_url = "http://localhost:5173"
     
-    posts = Post.query.filter_by(status="published").all()
+    posts = Post.query.filter_by(status="published", visibility="public").all()
     projects = Project.query.all()
     
     urls = [
@@ -69,9 +69,9 @@ def sitemap():
 
 @system_bp.route("/rss.xml", methods=["GET"])
 def rss_feed():
-    """Tự động sinh RSS 2.0 Feed bài viết."""
+    """Tự động sinh RSS 2.0 Feed bài viết. CHỈ chứa bài viết công khai (Public) để chống rò rỉ Stealth."""
     base_url = "http://localhost:5173"
-    posts = Post.query.filter_by(status="published").order_by(Post.created_at.desc()).limit(20).all()
+    posts = Post.query.filter_by(status="published", visibility="public").order_by(Post.created_at.desc()).limit(20).all()
     
     rss = [
         '<?xml version="1.0" encoding="UTF-8"?>',

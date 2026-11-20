@@ -18,7 +18,10 @@ export default function Videos() {
   useEffect(() => {
     setIsLoading(true);
     contentService.getVideos()
-      .then(res => setVideos(res.data || []))
+      .then(res => {
+        const data = res?.data || res;
+        setVideos(Array.isArray(data) ? data : (data?.items || []));
+      })
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);

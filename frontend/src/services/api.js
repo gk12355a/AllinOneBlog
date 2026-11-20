@@ -6,6 +6,7 @@ import { mediaService } from './mediaService';
 import { contentService } from './contentService';
 import { seriesService } from './seriesService';
 import { categoryService } from './categoryService';
+import { notificationService } from './notificationService';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -52,6 +53,7 @@ export {
   seriesService as seriesApi,
   mediaService as mediaApi,
   contentService as contentApi,
+  notificationService,
 };
 
 export default api;

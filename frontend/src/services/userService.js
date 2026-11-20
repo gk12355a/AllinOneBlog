@@ -13,6 +13,13 @@ export const userService = {
   getBookmarks: () => api.get('/user/bookmarks'),
   addBookmark: (postId) => api.post(`/user/bookmarks/${postId}`),
   removeBookmark: (postId) => api.delete(`/user/bookmarks/${postId}`),
+  // Admin User Management
+  getAdminUsers: (params) => api.get('/admin/users', { params }),
+  updateUserStatus: (userId, data) => api.put(`/admin/users/${userId}/status`, data),
+  updateUserRole: (userId, data) => api.put(`/admin/users/${userId}/role`, data),
+  // Audit Logs
+  getAuditLogs: (params) => api.get('/admin/audit-logs', { params }),
+  getAuditStats: () => api.get('/admin/audit-logs/stats'),
 };
 
 export default userService;

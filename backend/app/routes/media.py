@@ -67,9 +67,93 @@ def upload_user_media():
     db.session.add(media)
     db.session.commit()
 
-    # Trả về URL để nhúng trực tiếp vào bình luận
+    # Trả về URL để nhúng trực tiếp vào bình luận hoặc cập nhật avatar
     image_url = wm_url if wm_url else file_url
-    return api_response(success=True, data={"url": image_url}, message="Tải ảnh lên thành công.", status_code=201)
+    return api_response(
+        success=True, 
+        data={
+            "url": image_url, 
+            "file_url": image_url,
+            "filename": file.filename,
+            "file_type": "image",
+            "file_size": file_size
+        }, 
+        message="Tải ảnh lên thành công.", 
+        status_code=201
+    )
+
+@media_bp.route("/chat/upload", methods=["POST"])
+@jwt_required()
+@limiter.limit("30 per minute")
+def upload_chat_attachment():
+    """
+    Endpoint upload file / hình ảnh đính kèm trong hội thoại chat (Tin nhắn liên hệ).
+    Hỗ trợ cả ảnh (jpg, png, webp, gif) và tài liệu (pdf, doc, docx, txt, zip, rar, xls, xlsx).
+    """
+    import uuid
+    from werkzeug.utils import secure_filename
+
+    if "file" not in request.files:
+        return api_response(success=False, message="Vui lòng chọn file cần gửi.", status_code=400)
+    file = request.files["file"]
+    if not file or file.filename == "":
+        return api_response(success=False, message="File không hợp lệ.", status_code=400)
+
+    filename = secure_filename(file.filename) or f"file_{uuid.uuid4().hex[:8]}"
+    ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
+
+    ALLOWED_CHAT_EXTS = {
+        "png", "jpg", "jpeg", "webp", "gif", "svg",
+        "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip", "rar", "tar", "gz"
+    }
+
+    if ext not in ALLOWED_CHAT_EXTS:
+        return api_response(
+            success=False, 
+            message=f"Định dạng .{ext} không được hỗ trợ. Chỉ chấp nhận ảnh và tài liệu văn phòng phổ biến (PDF, Word, Excel, ZIP...).", 
+            status_code=400
+        )
+
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    os.makedirs(upload_folder, exist_ok=True)
+
+    is_image = ext in {"png", "jpg", "jpeg", "webp", "gif"}
+    unique_name = f"chat_{uuid.uuid4().hex[:12]}_{filename}"
+    file_path = os.path.join(upload_folder, unique_name)
+
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+
+    # Giới hạn kích thước file 15MB
+    if file_size > 15 * 1024 * 1024:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return api_response(success=False, message="Kích thước file vượt quá 15MB.", status_code=400)
+
+    file_url = f"/api/uploads/{unique_name}"
+
+    media = Media(
+        filename=filename,
+        file_url=file_url,
+        watermark_url=file_url,
+        file_type="image" if is_image else "document",
+        file_size=file_size
+    )
+    db.session.add(media)
+    db.session.commit()
+
+    return api_response(
+        success=True,
+        data={
+            "url": file_url,
+            "filename": filename,
+            "file_type": "image" if is_image else "document",
+            "file_size": file_size,
+            "ext": ext
+        },
+        message="Tải lên tệp đính kèm thành công.",
+        status_code=201
+    )
 
 @media_bp.route("/admin/media", methods=["GET"])
 @admin_required()

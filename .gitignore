@@ -41,6 +41,13 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Logs & Uploads (runtime)
+backend/logs/
+*.log
+backend/uploads/
+uploads/
+test_*.py
+
 # Gemini & Agent Artifacts / Internal
 .gemini/
 .system_generated/

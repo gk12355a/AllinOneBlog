@@ -16,9 +16,12 @@ import VideoDetail from '../pages/reader/VideoDetail';
 import Albums from '../pages/reader/Albums';
 import AlbumDetail from '../pages/reader/AlbumDetail';
 import Certificates from '../pages/reader/Certificates';
+import ProjectDetail from '../pages/reader/ProjectDetail';
 import MyLibrary from '../pages/reader/MyLibrary';
 import Settings from '../pages/reader/Settings';
+import UserInbox from '../pages/reader/UserInbox';
 import Login from '../pages/reader/Login';
+import NotFound from '../pages/reader/NotFound';
 
 export default function AppRoutes() {
   return (
@@ -36,12 +39,17 @@ export default function AppRoutes() {
         <Route path="/my-library" element={<MyLibrary />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/:section" element={<Settings />} />
+        <Route path="/inbox" element={<UserInbox />} />
+        <Route path="/messages" element={<UserInbox />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
+        <Route path="/project/:id" element={<ProjectDetail />} />
         <Route path="/albums" element={<Albums />} />
         <Route path="/album" element={<Albums />} />
         <Route path="/albums/:slug" element={<AlbumDetail />} />
         <Route path="/album/:slug" element={<AlbumDetail />} />
         <Route path="/certificates" element={<Certificates />} />
         <Route path="/login" element={<Login />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Admin Layout & Protected Routes */}

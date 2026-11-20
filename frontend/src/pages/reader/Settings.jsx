@@ -123,11 +123,15 @@ export default function Settings() {
       const formData = new FormData();
       formData.append('file', file);
       const res = await mediaService.uploadUserImage(formData);
-      if (res.data?.success && res.data?.data?.file_url) {
-        setProfileForm(prev => ({ ...prev, avatar_url: res.data.data.file_url }));
+      // Support both direct unwrapped response (via axios interceptor) and wrapped res.data
+      const dataObj = res?.data?.data || res?.data || res;
+      const uploadedUrl = dataObj?.file_url || dataObj?.url;
+
+      if (uploadedUrl) {
+        setProfileForm(prev => ({ ...prev, avatar_url: uploadedUrl }));
         showToast(lang === 'vi' ? 'Đã tải ảnh đại diện lên thành công!' : 'Avatar uploaded successfully!');
       } else {
-        throw new Error(res.data?.message || 'Upload failed');
+        throw new Error(res?.message || 'Upload failed');
       }
     } catch (err) {
       showToast(err.response?.data?.message || (lang === 'vi' ? 'Tải ảnh thất bại.' : 'Failed to upload avatar.'), 'error');
@@ -156,14 +160,17 @@ export default function Settings() {
     try {
       setProfileSaving(true);
       const res = await authService.updateProfile(profileForm);
-      if (res.data?.success) {
-        updateUserData(res.data.data);
+      const isSuccess = res?.success || res?.data?.success;
+      const userData = res?.data?.data || res?.data || res;
+
+      if (isSuccess) {
+        updateUserData(userData);
         showToast(lang === 'vi' ? 'Hồ sơ cá nhân đã được lưu thành công!' : 'Profile updated successfully!');
       } else {
-        showToast(res.data?.message || 'Update failed', 'error');
+        showToast(res?.message || res?.data?.message || 'Update failed', 'error');
       }
     } catch (err) {
-      showToast(err.response?.data?.message || (lang === 'vi' ? 'Lỗi khi cập nhật hồ sơ.' : 'Error updating profile.'), 'error');
+      showToast(err?.message || err?.response?.data?.message || (lang === 'vi' ? 'Lỗi khi cập nhật hồ sơ.' : 'Error updating profile.'), 'error');
     } finally {
       setProfileSaving(false);
     }
@@ -191,14 +198,15 @@ export default function Settings() {
         current_password: pwdForm.currentPassword,
         new_password: pwdForm.newPassword
       });
-      if (res.data?.success) {
+      const isSuccess = res?.success || res?.data?.success;
+      if (isSuccess) {
         showToast(lang === 'vi' ? 'Đổi mật khẩu thành công!' : 'Password changed successfully!');
         setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
-        showToast(res.data?.message || 'Error', 'error');
+        showToast(res?.message || res?.data?.message || 'Error', 'error');
       }
     } catch (err) {
-      showToast(err.response?.data?.message || (lang === 'vi' ? 'Lỗi khi đổi mật khẩu.' : 'Failed to change password.'), 'error');
+      showToast(err?.message || err?.response?.data?.message || (lang === 'vi' ? 'Lỗi khi đổi mật khẩu.' : 'Failed to change password.'), 'error');
     } finally {
       setPwdSaving(false);
     }
@@ -223,12 +231,14 @@ export default function Settings() {
     try {
       setSettingsSaving(true);
       const res = await authService.updateSettings(updated);
-      if (res.data?.success) {
-        updateUserData(res.data.data);
+      const isSuccess = res?.success || res?.data?.success;
+      const userData = res?.data?.data || res?.data || res;
+      if (isSuccess) {
+        updateUserData(userData);
         showToast(lang === 'vi' ? 'Cài đặt đã được lưu.' : 'Settings saved successfully.');
       }
     } catch (err) {
-      showToast(err.response?.data?.message || (lang === 'vi' ? 'Lỗi khi lưu cài đặt.' : 'Error saving settings.'), 'error');
+      showToast(err?.message || err?.response?.data?.message || (lang === 'vi' ? 'Lỗi khi lưu cài đặt.' : 'Error saving settings.'), 'error');
     } finally {
       setSettingsSaving(false);
     }
@@ -239,8 +249,11 @@ export default function Settings() {
     try {
       setExporting(true);
       const res = await authService.exportData();
-      if (res.data?.success && res.data?.data) {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data.data, null, 2));
+      const isSuccess = res?.success || res?.data?.success;
+      const exportDataObj = res?.data?.data || res?.data;
+
+      if (isSuccess && exportDataObj) {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportDataObj, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
         downloadAnchor.setAttribute("download", `allinoneblog_user_data_${user.username || 'export'}.json`);
@@ -270,13 +283,14 @@ export default function Settings() {
     try {
       setDeleting(true);
       const res = await authService.deleteAccount({ password: deletePassword });
-      if (res.data?.success) {
+      const isSuccess = res?.success || res?.data?.success;
+      if (isSuccess) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
       }
     } catch (err) {
-      showToast(err.response?.data?.message || (lang === 'vi' ? 'Không thể xóa tài khoản.' : 'Failed to delete account.'), 'error');
+      showToast(err?.message || err?.response?.data?.message || (lang === 'vi' ? 'Không thể xóa tài khoản.' : 'Failed to delete account.'), 'error');
       setDeleting(false);
     }
   };

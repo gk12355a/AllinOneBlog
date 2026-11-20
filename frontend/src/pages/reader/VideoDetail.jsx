@@ -24,7 +24,7 @@ export default function VideoDetail() {
     setIsPlaying(false);
     contentService.getVideo(slug)
       .then(res => {
-        const vData = res.data;
+        const vData = res?.data || res;
         setVideo(vData);
         // Tăng lượt xem video
         if (vData?.id) {

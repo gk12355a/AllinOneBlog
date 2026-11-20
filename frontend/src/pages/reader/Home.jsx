@@ -1,17 +1,40 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Download, Mail, ExternalLink, Sparkles, Briefcase, Code, Terminal, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Download, Mail, ExternalLink, Sparkles, Briefcase, Code, Terminal, CheckCircle2, Lock, LogIn } from 'lucide-react';
 import { GithubIcon } from '../../components/SocialIcons';
 import api from '../../services/api';
 import { useApp } from '../../contexts/AppContext';
 
 export default function Home() {
-  const { t } = useApp();
+  const { t, user, lang } = useApp();
   const [profile, setProfile] = useState(null);
   const [featuredProjects, setFeaturedProjects] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
-  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [contactForm, setContactForm] = useState({ 
+    name: user?.display_name || user?.username || '', 
+    email: user?.email || '', 
+    subject: '', 
+    category: 'general',
+    message: '' 
+  });
+  const [honeypot, setHoneypot] = useState('');
+  const [formStartTime, setFormStartTime] = useState(Date.now());
   const [contactStatus, setContactStatus] = useState({ loading: false, success: false, error: '' });
+
+  useEffect(() => {
+    setFormStartTime(Date.now());
+  }, []);
+
+  // Tự động điền thông tin nếu người dùng đăng nhập
+  useEffect(() => {
+    if (user) {
+      setContactForm(prev => ({
+        ...prev,
+        name: prev.name || user.display_name || user.username || '',
+        email: prev.email || user.email || ''
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     // 1. Lấy thông tin Profile
@@ -28,11 +51,48 @@ export default function Home() {
     e.preventDefault();
     setContactStatus({ loading: true, success: false, error: '' });
     try {
-      await api.post('/contact', contactForm);
-      setContactStatus({ loading: false, success: true, error: '' });
-      setContactForm({ name: '', email: '', subject: '', message: '' });
+      const fillTimeMs = Date.now() - formStartTime;
+      const payload = {
+        ...contactForm,
+        website_hp: honeypot,
+        fill_time_ms: fillTimeMs
+      };
+      const res = await api.post('/contact', payload);
+      setContactStatus({ 
+        loading: false, 
+        success: true, 
+        error: '' 
+      });
+      setContactForm({ 
+        name: user?.display_name || user?.username || '', 
+        email: user?.email || '', 
+        subject: '', 
+        category: 'general',
+        message: '' 
+      });
+      setHoneypot('');
     } catch (err) {
-      setContactStatus({ loading: false, success: false, error: err.message || 'Không thể gửi tin nhắn.' });
+      // err có thể là object response.data do Axios interceptor reject(error.response?.data || error.message)
+      const data = err?.response?.data || err;
+      const rawMsg = data?.message || err?.message || '';
+      const isRateLimit = err?.response?.status === 429 || 
+                          data?.error === 'rate_limit_exceeded' || 
+                          (typeof rawMsg === 'string' && (rawMsg.toLowerCase().includes('rate limit') || rawMsg.toLowerCase().includes('quá nhiều lần')));
+
+      let errorMsg;
+      if (isRateLimit) {
+        errorMsg = lang === 'en'
+          ? (data?.message_en || t('home.rate_limit_error'))
+          : (data?.message_vi || t('home.rate_limit_error'));
+      } else {
+        errorMsg = (typeof rawMsg === 'string' && rawMsg) ? rawMsg : (lang === 'en' ? 'Failed to send message.' : 'Không thể gửi tin nhắn.');
+      }
+
+      setContactStatus({ 
+        loading: false, 
+        success: false, 
+        error: errorMsg 
+      });
     }
   };
 
@@ -154,21 +214,23 @@ export default function Home() {
           {featuredProjects.map((proj) => (
             <div
               key={proj.id}
-              className="group rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 transition-all hover:shadow-xl flex flex-col"
+              className="group rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 transition-all hover:shadow-xl flex flex-col cursor-pointer"
             >
               {proj.image_url && (
-                <div className="h-48 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                <Link to={`/projects/${proj.id}`} className="block h-48 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
                   <img
                     src={proj.image_url}
                     alt={proj.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                </div>
+                </Link>
               )}
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {proj.title}
+                    <Link to={`/projects/${proj.id}`} className="hover:underline">
+                      {proj.title}
+                    </Link>
                   </h3>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-3">
                     {proj.description}
@@ -184,29 +246,41 @@ export default function Home() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-3 pt-2">
-                    {proj.show_demo && proj.demo_link && (
-                      <a
-                        href={proj.demo_link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Live Demo</span>
-                      </a>
-                    )}
-                    {proj.show_github && proj.github_link && (
-                      <a
-                        href={proj.github_link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:underline"
-                      >
-                        <GithubIcon className="w-3.5 h-3.5" />
-                        <span>Source Code</span>
-                      </a>
-                    )}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-3">
+                      {proj.show_demo && proj.demo_link && (
+                        <a
+                          href={proj.demo_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Live Demo</span>
+                        </a>
+                      )}
+                      {proj.show_github && proj.github_link && (
+                        <a
+                          href={proj.github_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:underline"
+                        >
+                          <GithubIcon className="w-3.5 h-3.5" />
+                          <span>Source Code</span>
+                        </a>
+                      )}
+                    </div>
+
+                    <Link
+                      to={`/projects/${proj.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline group-hover:translate-x-0.5 transition-transform"
+                    >
+                      <span>Chi tiết</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -299,21 +373,21 @@ export default function Home() {
       )}
 
       {/* 6. QUICK CONTACT FORM */}
-      <section id="contact" className="p-8 sm:p-12 rounded-3xl bg-gradient-to-tr from-blue-50/50 to-indigo-50/50 dark:from-zinc-900 dark:to-zinc-900/50 border border-zinc-200 dark:border-zinc-800 scroll-mt-20">
+      <section id="contact" className="p-8 sm:p-12 rounded-3xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 scroll-mt-20 shadow-sm">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
               {t('home.contact_me')}
             </h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Có ý tưởng dự án hoặc muốn hợp tác? Hãy gửi tin nhắn cho tôi bất kỳ lúc nào!
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {t('home.contact_subtitle')}
             </p>
           </div>
 
           {contactStatus.success && (
             <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              <span>Cảm ơn bạn! Tin nhắn đã được gửi thành công. Tôi sẽ phản hồi sớm nhất có thể.</span>
+              <span>{t('home.contact_success')}</span>
             </div>
           )}
 
@@ -323,60 +397,141 @@ export default function Home() {
             </div>
           )}
 
-          <form onSubmit={handleSendContact} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">{t('home.your_name')}</label>
+          {!user ? (
+            <div className="p-8 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-center space-y-4 shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/50 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto shadow-sm">
+                <Lock className="w-7 h-7" />
+              </div>
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  {t('home.contact_login_required_title')}
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  {t('home.contact_login_required_desc')}
+                </p>
+              </div>
+              <div className="pt-2">
+                <Link
+                  to="/login?redirect=/#contact"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all hover:scale-105"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>{t('home.contact_login_btn')}</span>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSendContact} className="space-y-4">
+              {/* Honeypot field (ẩn với người thật, bot tự điền sẽ bị bẫy) */}
+              <div className="hidden" aria-hidden="true" style={{ display: 'none' }}>
+                <label htmlFor="website_hp">Không điền vào ô này nếu bạn là người thật:</label>
                 <input
+                  id="website_hp"
                   type="text"
-                  required
-                  value={contactForm.name}
-                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500"
+                  name="website_hp"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
                 />
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    {t('home.your_name')} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    readOnly
+                    autoComplete="name"
+                    placeholder="VD: Nguyễn Văn A"
+                    value={contactForm.name}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-300 text-sm outline-none cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    {t('home.your_email')} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    readOnly
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    value={contactForm.email}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-300 text-sm outline-none cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    {t('home.contact_topic')}
+                  </label>
+                  <select
+                    value={contactForm.category}
+                    onChange={(e) => setContactForm({ ...contactForm, category: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500 font-medium cursor-pointer"
+                  >
+                    <option value="general">{t('home.contact_topic_general')}</option>
+                    <option value="project">{t('home.contact_topic_project')}</option>
+                    <option value="question">{t('home.contact_topic_question')}</option>
+                    <option value="feedback">{t('home.contact_topic_feedback')}</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    {t('home.contact_subject')}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t('home.contact_subject_placeholder')}
+                    value={contactForm.subject}
+                    onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">{t('home.your_email')}</label>
-                <input
-                  type="email"
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    {t('home.message_content')} <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    {contactForm.message.length} / 5000 {t('home.contact_chars')}
+                  </span>
+                </div>
+                <textarea
                   required
-                  value={contactForm.email}
-                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500"
-                />
+                  rows={4}
+                  maxLength={5000}
+                  placeholder={t('home.contact_message_placeholder')}
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500 resize-none leading-relaxed"
+                ></textarea>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Tiêu đề</label>
-              <input
-                type="text"
-                value={contactForm.subject}
-                onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
+              <p className="text-[11px] text-zinc-400 text-center">
+                {t('home.contact_privacy_note')}
+              </p>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">{t('home.message_content')}</label>
-              <textarea
-                required
-                rows={4}
-                value={contactForm.message}
-                onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm outline-none focus:border-blue-500 resize-none"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              disabled={contactStatus.loading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Mail className="w-4 h-4" />
-              <span>{contactStatus.loading ? 'Đang gửi...' : t('home.send_message')}</span>
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={contactStatus.loading}
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Mail className="w-4 h-4" />
+                <span>{contactStatus.loading ? t('home.sending') : t('home.send_message')}</span>
+              </button>
+            </form>
+          )}
         </div>
       </section>
     </div>

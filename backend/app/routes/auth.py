@@ -1,9 +1,13 @@
 import re
+import time
+from datetime import datetime, timedelta
 from flask import Blueprint, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from app.extensions import db, limiter
 from app.models import User
 from app.utils.helpers import api_response
+from app.services.audit_service import AuditService
+from app.utils.device_detector import get_client_ip
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -37,24 +41,119 @@ def register():
     return api_response(success=True, data=user.to_dict(), message="User registered successfully.", status_code=201)
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def login():
     data = request.get_json() or {}
     identifier = data.get("identifier", "").strip()
     username = data.get("username", "").strip() or identifier
     password = data.get("password", "")
+    client_ip = get_client_ip(request)
 
     if not username or not password:
         return api_response(success=False, message="Username and password are required.", status_code=400)
 
     user = User.query.filter((User.username == username) | (User.email == username)).first()
-    if not user or not user.check_password(password):
-        return api_response(success=False, message="Invalid username or password.", status_code=401)
 
-    # Cấp phát JWT token kèm role
+    # 1. Nếu tài khoản tồn tại, kiểm tra xem có đang bị khóa không
+    if user:
+        now = datetime.utcnow()
+        # Kiểm tra khóa thủ công bởi Admin
+        if not user.is_active:
+            AuditService.log(
+                action=f"{user.username} đăng nhập",
+                feature="Xác thực",
+                status="failed",
+                user_id=user.id,
+                username=user.username,
+                failure_reason=f"Tài khoản đã bị vô hiệu hóa. Lý do: {user.disabled_reason or 'Không có'}",
+                req=request
+            )
+            return api_response(
+                success=False, 
+                message="Tài khoản này hiện đang bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ.", 
+                status_code=403
+            )
+
+        # Kiểm tra khóa tạm thời do nhập sai nhiều lần
+        if user.locked_until and user.locked_until > now:
+            remaining_mins = max(1, int((user.locked_until - now).total_seconds() // 60))
+            AuditService.log(
+                action=f"{user.username} đăng nhập",
+                feature="Xác thực",
+                status="failed",
+                user_id=user.id,
+                username=user.username,
+                failure_reason=f"Tài khoản đã bị khóa do nhập sai quá số lần cho phép. Khóa đến {user.locked_until.strftime('%H:%M:%S %d/%m/%Y')}",
+                req=request
+            )
+            return api_response(
+                success=False, 
+                message=f"Tài khoản tạm thời bị khóa do nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau {remaining_mins} phút.", 
+                status_code=403
+            )
+
+    # 2. Kiểm tra mật khẩu
+    if not user or not user.check_password(password):
+        if user:
+            # Tăng số lần đăng nhập sai
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            reason = "Mật khẩu không chính xác."
+            
+            # Nếu nhập sai 5 lần liên tiếp -> Khóa tạm thời 15 phút
+            if user.failed_login_attempts >= 5:
+                lock_duration = 15  # 15 phút
+                user.locked_until = datetime.utcnow() + timedelta(minutes=lock_duration)
+                reason = f"Tài khoản đã bị khóa do nhập sai quá số lần cho phép. Vui lòng liên hệ Quản trị viên hoặc thử lại sau {lock_duration} phút."
+
+            db.session.commit()
+
+            AuditService.log(
+                action=f"{user.username} đăng nhập",
+                feature="Xác thực",
+                status="failed",
+                user_id=user.id,
+                username=user.username,
+                failure_reason=reason,
+                req=request
+            )
+        else:
+            # Ghi log đăng nhập thất bại cho user không tồn tại
+            AuditService.log(
+                action=f"{username} đăng nhập",
+                feature="Xác thực",
+                status="failed",
+                username=username,
+                failure_reason="Tài khoản không tồn tại trong hệ thống.",
+                req=request
+            )
+
+        return api_response(success=False, message="Thông tin đăng nhập không chính xác.", status_code=401)
+
+    # 3. Đăng nhập thành công -> Reset failed_login_attempts và cập nhật last_login
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login_at = datetime.utcnow()
+    user.last_login_ip = client_ip
+    db.session.commit()
+
+    # Cấp phát JWT token kèm role và token_version
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={"role": user.role, "username": user.username}
+        additional_claims={
+            "role": user.role, 
+            "username": user.username,
+            "token_version": user.token_version or 1
+        }
+    )
+
+    # Ghi log thành công
+    AuditService.log(
+        action=f"{user.username} đăng nhập",
+        feature="Xác thực",
+        status="success",
+        user_id=user.id,
+        username=user.username,
+        req=request
     )
 
     return api_response(

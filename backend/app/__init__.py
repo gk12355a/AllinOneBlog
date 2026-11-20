@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify
 from app.config import Config
-from app.extensions import db, jwt, limiter, cors
+from app.extensions import db, jwt, limiter, cors, socketio
 
 def create_app(config_class=Config):
     """Application Factory Pattern khởi tạo Flask App."""
@@ -15,6 +15,11 @@ def create_app(config_class=Config):
     db.init_app(app)
     jwt.init_app(app)
     limiter.init_app(app)
+    socketio.init_app(app)
+
+    # Thiết lập Structured Logging chuyên nghiệp
+    from app.utils.logger import setup_logger
+    setup_logger(app)
     
     # Cấu hình CORS chặt chẽ theo origins quy định trong Config / .env
     cors.init_app(
@@ -34,6 +39,8 @@ def create_app(config_class=Config):
     from app.routes.media import media_bp
     from app.routes.content import content_bp
     from app.routes.system import system_bp
+    from app.routes.admin_users import admin_users_bp
+    from app.routes.notifications import notifications_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(profile_bp, url_prefix="/api")
@@ -42,7 +49,12 @@ def create_app(config_class=Config):
     app.register_blueprint(series_bp, url_prefix="/api")
     app.register_blueprint(media_bp, url_prefix="/api")
     app.register_blueprint(content_bp, url_prefix="/api")
+    app.register_blueprint(admin_users_bp, url_prefix="/api")
+    app.register_blueprint(notifications_bp, url_prefix="/api")
     app.register_blueprint(system_bp, url_prefix="")
+
+    # Đăng ký SocketIO event handlers & Realtime Service
+    from app.services import realtime_service
 
     # Thiết lập Security Headers (Chống Clickjacking, MIME-sniffing, XSS)
     @app.after_request
@@ -53,29 +65,46 @@ def create_app(config_class=Config):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         return response
 
-    # Global Error Handlers (Xử lý lỗi an toàn không để lộ Stack Trace)
+    # Global Error Handlers (Xử lý lỗi an toàn không để lộ Stack Trace & Ghi log chi tiết)
+    import traceback
+    from flask import g
+
     @app.errorhandler(400)
     def bad_request(error):
+        g.error_detail = str(error)
         return jsonify({"success": False, "message": "Bad request.", "error": str(error)}), 400
 
     @app.errorhandler(401)
     def unauthorized(error):
+        g.error_detail = "Unauthorized access"
         return jsonify({"success": False, "message": "Unauthorized access."}), 401
 
     @app.errorhandler(403)
     def forbidden(error):
+        g.error_detail = "Access forbidden"
         return jsonify({"success": False, "message": "Access forbidden."}), 403
 
     @app.errorhandler(404)
     def not_found(error):
+        g.error_detail = "Resource not found"
         return jsonify({"success": False, "message": "Resource not found."}), 404
 
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        return jsonify({"success": False, "message": f"Rate limit exceeded: {e.description}"}), 429
+        desc = getattr(e, 'description', '')
+        g.error_detail = f"Rate limit exceeded: {desc}"
+        return jsonify({
+            "success": False, 
+            "message": "Too many requests. Please try again in a few minutes.",
+            "message_en": f"Rate limit exceeded: {desc}. Please try again later.",
+            "message_vi": "Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng thử lại sau ít phút.",
+            "error": "rate_limit_exceeded"
+        }), 429
 
     @app.errorhandler(500)
     def internal_error(error):
+        g.error_detail = str(error)
+        g.error_traceback = traceback.format_exc()
         return jsonify({"success": False, "message": "Internal server error."}), 500
 
     return app

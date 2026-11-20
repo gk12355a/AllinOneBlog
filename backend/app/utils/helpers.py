@@ -1,9 +1,28 @@
 import re
 import unicodedata
+from datetime import datetime, timezone, timedelta
 from flask import jsonify
 from functools import wraps
 from flask_jwt_extended import verify_jwt_in_request, get_jwt
 import bleach
+
+# Múi giờ Việt Nam (UTC+7)
+VN_TZ = timezone(timedelta(hours=7))
+
+def format_datetime_utc7(dt):
+    """
+    Chuyển đổi datetime (thường lưu UTC naive trong DB) sang chuẩn UTC+7 có kèm offset (+07:00).
+    """
+    if not dt:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except Exception:
+            return dt
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(VN_TZ).isoformat()
 
 def generate_slug(text: str) -> str:
     """Sinh slug chuẩn SEO từ chuỗi tiếng Việt hoặc tiếng Anh."""
@@ -41,13 +60,27 @@ def api_response(success: bool = True, data=None, message: str = "", status_code
     return jsonify(response_body), status_code
 
 def admin_required():
-    """Decorator bảo vệ route chỉ dành riêng cho Admin."""
+    """Decorator bảo vệ route chỉ dành riêng cho Admin còn hiệu lực (chưa bị khóa)."""
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
+            from app.models import User
             verify_jwt_in_request()
             claims = get_jwt()
-            if claims.get("role") != "admin":
+            user_id = claims.get("sub")
+            if not user_id:
+                return api_response(success=False, message="Unauthorized access.", status_code=401)
+            
+            user = User.query.get(int(user_id))
+            if not user or not user.is_active:
+                return api_response(success=False, message="Tài khoản đã bị vô hiệu hóa hoặc không tồn tại.", status_code=403)
+            
+            # Kiểm tra token_version nếu có trong claims
+            token_ver = claims.get("token_version")
+            if token_ver is not None and token_ver != user.token_version:
+                return api_response(success=False, message="Phiên đăng nhập đã hết hiệu lực do thay đổi bảo mật.", status_code=401)
+
+            if user.role != "admin":
                 return api_response(success=False, message="Admin privilege required.", status_code=403)
             return fn(*args, **kwargs)
         return decorator

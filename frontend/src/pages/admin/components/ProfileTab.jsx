@@ -12,9 +12,11 @@ import {
   ChevronsUp,
   ChevronsDown,
   FoldVertical,
-  UnfoldVertical
+  UnfoldVertical,
+  Upload,
+  RefreshCw
 } from 'lucide-react';
-import { profileApi } from '../../../services/api';
+import { profileApi, mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
 
 export default function ProfileTab({ initialProfile, onProfileUpdated }) {
@@ -31,6 +33,7 @@ export default function ProfileTab({ initialProfile, onProfileUpdated }) {
     timeline: []
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Drag and Drop states for Timeline
   const [draggedTimelineIdx, setDraggedTimelineIdx] = useState(null);
@@ -145,6 +148,36 @@ export default function ProfileTab({ initialProfile, onProfileUpdated }) {
       });
     }
   }, [initialProfile]);
+
+  const handleUploadAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Dung lượng ảnh tối đa là 5MB.');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await mediaApi.uploadUserImage(formData);
+      const dataObj = res?.data?.data || res?.data || res;
+      const uploadedUrl = dataObj?.file_url || dataObj?.url;
+
+      if (uploadedUrl) {
+        setProfileForm(prev => ({ ...prev, avatar_url: uploadedUrl }));
+        alert('Tải ảnh đại diện lên thành công! Hãy bấm "Lưu Thay Đổi Hồ Sơ" để áp dụng ra Trang chủ.');
+      } else {
+        throw new Error(res?.message || 'Tải ảnh thất bại');
+      }
+    } catch (err) {
+      alert(err?.message || err?.response?.data?.message || 'Lỗi khi tải ảnh');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -389,16 +422,36 @@ export default function ProfileTab({ initialProfile, onProfileUpdated }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-              {t('admin.avatar_url')}
-            </label>
-            <input
-              type="text"
-              value={profileForm.avatar_url}
-              onChange={(e) => setProfileForm({ ...profileForm, avatar_url: e.target.value })}
-              placeholder="https://..."
-              className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                {t('admin.avatar_url')}
+              </label>
+              <label className="cursor-pointer text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1">
+                <Upload className="w-3.5 h-3.5" />
+                <span>{isUploadingAvatar ? 'Đang tải lên...' : 'Tải ảnh mới từ máy'}</span>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleUploadAvatar}
+                  disabled={isUploadingAvatar}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            <div className="flex items-center gap-3">
+              {profileForm.avatar_url && (
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                  <img src={profileForm.avatar_url} alt="Avatar Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <input
+                type="text"
+                value={profileForm.avatar_url}
+                onChange={(e) => setProfileForm({ ...profileForm, avatar_url: e.target.value })}
+                placeholder="https://..."
+                className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-800 dark:text-zinc-200 font-mono"
+              />
+            </div>
           </div>
 
           <div>
@@ -447,13 +500,12 @@ export default function ProfileTab({ initialProfile, onProfileUpdated }) {
                 onDragOver={(e) => handleSkillDragOver(e, sIdx)}
                 onDrop={(e) => handleSkillDrop(e, sIdx)}
                 onDragEnd={handleSkillDragEnd}
-                className={`p-4 rounded-xl border transition-all duration-150 space-y-3 relative group ${
-                  isDragging
+                className={`p-4 rounded-xl border transition-all duration-150 space-y-3 relative group ${isDragging
                     ? 'opacity-40 scale-[0.98] border-dashed border-blue-400 dark:border-blue-500 bg-blue-50/10'
                     : isDragOver
-                    ? 'border-blue-500 ring-2 ring-blue-500/30 bg-blue-50/10'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'
-                }`}
+                      ? 'border-blue-500 ring-2 ring-blue-500/30 bg-blue-50/10'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'
+                  }`}
               >
                 {/* Top bar with drag handle and actions */}
                 <div className="flex items-center justify-between pb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
@@ -578,13 +630,12 @@ export default function ProfileTab({ initialProfile, onProfileUpdated }) {
                 onDragOver={(e) => handleTimelineDragOver(e, tIdx)}
                 onDrop={(e) => handleTimelineDrop(e, tIdx)}
                 onDragEnd={handleTimelineDragEnd}
-                className={`p-3.5 rounded-xl border transition-all duration-150 space-y-3 relative group select-none ${
-                  isDragging
+                className={`p-3.5 rounded-xl border transition-all duration-150 space-y-3 relative group select-none ${isDragging
                     ? 'opacity-40 scale-[0.98] border-dashed border-emerald-400 dark:border-emerald-500 bg-emerald-50/10 shadow-inner'
                     : isDragOver
-                    ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-50/10'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'
-                }`}
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-50/10'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'
+                  }`}
               >
                 {/* Header bar of Card: Drag Handle + Position Badge + Quick Reorder Buttons + Delete */}
                 <div

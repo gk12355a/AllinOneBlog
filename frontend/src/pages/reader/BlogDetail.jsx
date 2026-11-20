@@ -22,6 +22,7 @@ import CodeBlock from '../../components/CodeBlock';
 import CommentSection from '../../components/CommentSection';
 import ShareButtons from '../../components/ShareButtons';
 import { useApp } from '../../contexts/AppContext';
+import NotFound from './NotFound';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -168,14 +169,7 @@ export default function BlogDetail() {
   }
 
   if (!post) {
-    return (
-      <div className="text-center py-24 space-y-4">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Bài viết không tồn tại</h2>
-        <Link to="/blog" className="text-blue-600 hover:underline text-sm font-semibold">
-          Quay lại danh sách bài viết
-        </Link>
-      </div>
-    );
+    return <NotFound />;
   }
 
   const fontClass = fontFamily === 'serif' ? 'font-reading-serif' : fontFamily === 'mono' ? 'font-reading-mono' : 'font-reading-sans';
@@ -337,7 +331,7 @@ export default function BlogDetail() {
             </span>
             <div>
               <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                Bài {post.order_index ? post.order_index + 1 : 1} trong chuỗi bài viết:
+                Bước {post.order_index || 1}{post.series.total_items ? `/${post.series.total_items}` : (post.series.total_posts ? `/${post.series.total_posts}` : '')} trong lộ trình:
               </p>
               <Link
                 to={`/series/${post.series.slug}`}

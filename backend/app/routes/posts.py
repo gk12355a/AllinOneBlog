@@ -6,8 +6,10 @@ from datetime import datetime
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.extensions import db, limiter
-from app.models import Post, Series, Comment
+from app.models import Post, Series, Comment, PostAccessUser, PostAccessRole, PostExcludedUser, User
 from app.services.ai_search_service import RecommendationService
+from app.services.post_access_service import get_current_user_optional, visible_posts, get_post_or_404
+from app.services.audit_service import AuditService
 from app.utils.helpers import api_response, admin_required, generate_slug, sanitize_html
 
 posts_bp = Blueprint("posts", __name__)
@@ -37,6 +39,7 @@ def verify_preview_token(post_id: int, token: str) -> bool:
 
 @posts_bp.route("/posts", methods=["GET"])
 def get_posts():
+    user = get_current_user_optional()
     page = request.args.get("page", 1, type=int)
     limit = request.args.get("limit", 10, type=int)
     tag = request.args.get("tag", "").strip()
@@ -44,12 +47,13 @@ def get_posts():
     lang = request.args.get("lang", "").strip()
     sort_by = request.args.get("sort", "newest").strip().lower()
 
-    query = Post.query.filter_by(status="published")
+    # Bắt buộc lọc qua visible_posts (Single Source of Truth)
+    query = visible_posts(user)
 
     if lang and lang != "all":
-        query = query.filter_by(lang=lang)
+        query = query.filter(Post.lang == lang)
     if series_id:
-        query = query.filter_by(series_id=series_id)
+        query = query.filter(Post.series_id == series_id)
     if tag:
         query = query.filter(Post.tags.ilike(f"%{tag}%"))
 
@@ -61,7 +65,7 @@ def get_posts():
     pagination = query.paginate(page=page, per_page=limit, error_out=False)
     
     posts_data = [p.to_dict(include_content=False) for p in pagination.items]
-    return api_response(success=True, data={
+    response, code = api_response(success=True, data={
         "posts": posts_data,
         "total": pagination.total,
         "page": pagination.page,
@@ -69,25 +73,41 @@ def get_posts():
         "has_next": pagination.has_next,
         "has_prev": pagination.has_prev
     })
+    response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+    response.headers["Vary"] = "Authorization"
+    return response, code
 
 @posts_bp.route("/posts/<string:slug>", methods=["GET"])
 def get_post_detail(slug: str):
-    post = Post.query.filter_by(slug=slug, status="published").first()
-    if not post:
-        return api_response(success=False, message="Post not found.", status_code=404)
+    user = get_current_user_optional()
+    post, err_resp = get_post_or_404(slug, user)
+    if err_resp:
+        # Nếu bài viết thật sự tồn tại trong DB nhưng bị từ chối quyền (Stealth Mode) -> Ghi log Audit an ninh
+        existing_post = Post.query.filter_by(slug=slug).first()
+        if existing_post:
+            AuditService.log(
+                action="Truy cập bài viết bị từ chối (404 Stealth)",
+                feature="Phân quyền bài viết",
+                status="failed",
+                user_id=user.id if user else None,
+                username=user.username if user else "Khách ẩn danh",
+                failure_reason=f"Không có quyền đọc bài viết riêng tư (Visibility: {existing_post.visibility})",
+                target_type="post",
+                target_id=str(existing_post.id),
+                target_name=existing_post.title,
+                commit=True
+            )
+        return err_resp
 
     # Chống tăng view lặp lại do React StrictMode kích hoạt 2 request liên tiếp
-    # Cách chuẩn của các nền tảng CMS: Nhận diện client qua IP + User-Agent và ghi nhận phiên truy cập ngắn
     client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     user_agent = request.headers.get("User-Agent", "")
     client_key = hashlib.md5(f"{client_ip}:{user_agent}:{post.id}".encode()).hexdigest()
 
-    # Sử dụng cache bộ nhớ tạm thời trên server để chặn các request trùng lặp trong vòng 3 giây
     if not hasattr(current_app, "_recent_views"):
         current_app._recent_views = {}
 
     now = time.time()
-    # Dọn dẹp cache cũ > 60 giây
     current_app._recent_views = {k: v for k, v in current_app._recent_views.items() if now - v < 60}
 
     last_view_time = current_app._recent_views.get(client_key, 0)
@@ -96,12 +116,13 @@ def get_post_detail(slug: str):
         db.session.commit()
         current_app._recent_views[client_key] = now
 
-    # Lấy bài trước và bài sau
-    prev_post = Post.query.filter(Post.status == "published", Post.created_at < post.created_at).order_by(Post.created_at.desc()).first()
-    next_post = Post.query.filter(Post.status == "published", Post.created_at > post.created_at).order_by(Post.created_at.asc()).first()
+    # Lấy bài trước và bài sau (Chỉ lấy trong danh sách visible_posts của người này)
+    vis_q = visible_posts(user)
+    prev_post = vis_q.filter(Post.created_at < post.created_at).order_by(Post.created_at.desc()).first()
+    next_post = vis_q.filter(Post.created_at > post.created_at).order_by(Post.created_at.asc()).first()
 
-    # Gợi ý bài liên quan bằng AI Recommendation (TF-IDF & Cosine Similarity)
-    related_posts = RecommendationService.get_related_posts(post.id, limit=4)
+    # Gợi ý bài liên quan bằng AI Recommendation (chỉ lọc trong visible_posts)
+    related_posts = RecommendationService.get_related_posts(post.id, limit=4, user=user)
 
     post_data = post.to_dict(include_content=True)
     post_data["navigation"] = {
@@ -110,7 +131,11 @@ def get_post_detail(slug: str):
     }
     post_data["related_posts"] = related_posts
 
-    return api_response(success=True, data=post_data)
+    response, code = api_response(success=True, data=post_data)
+    if post.visibility != "public":
+        response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+        response.headers["Vary"] = "Authorization"
+    return response, code
 
 @posts_bp.route("/posts/<string:slug>/preview", methods=["GET"])
 def preview_post(slug: str):
@@ -140,13 +165,13 @@ def create_preview_token(post_identifier):
 @posts_bp.route("/posts/<string:slug>/reactions", methods=["POST"])
 @limiter.limit("60 per minute")
 def react_post(slug: str):
-    post = Post.query.filter_by(slug=slug).first()
-    if not post:
-        return api_response(success=False, message="Post not found.", status_code=404)
+    user = get_current_user_optional()
+    post, err_resp = get_post_or_404(slug, user)
+    if err_resp:
+        return err_resp
 
     data = request.get_json() or {}
     reaction_type = data.get("type", "heart").lower()
-    # Hỗ trợ cờ remove: True/False để bật/tắt (toggle) phản ứng như Facebook
     action = data.get("action", "add")  # "add" hoặc "remove"
 
     reactions = json.loads(post.reactions_json or '{"fire": 0, "heart": 0, "idea": 0, "rocket": 0}')
@@ -167,11 +192,11 @@ def react_post(slug: str):
 
 @posts_bp.route("/posts/<string:slug>/comments", methods=["GET"])
 def get_post_comments(slug: str):
-    post = Post.query.filter_by(slug=slug).first()
-    if not post:
-        return api_response(success=False, message="Post not found.", status_code=404)
+    user = get_current_user_optional()
+    post, err_resp = get_post_or_404(slug, user)
+    if err_resp:
+        return err_resp
 
-    # Lấy các bình luận gốc (parent_id is None) kèm các câu trả lời lồng nhau (nested replies)
     root_comments = Comment.query.filter_by(post_id=post.id, parent_id=None).order_by(Comment.created_at.desc()).all()
     return api_response(success=True, data=[c.to_dict(include_replies=True) for c in root_comments])
 
@@ -180,24 +205,23 @@ def get_post_comments(slug: str):
 @limiter.limit("15 per minute")
 def add_comment(slug: str):
     user_id = int(get_jwt_identity())
-    post = Post.query.filter_by(slug=slug).first()
-    if not post:
-        return api_response(success=False, message="Post not found.", status_code=404)
+    current_u = User.query.get(user_id)
+    post, err_resp = get_post_or_404(slug, current_u)
+    if err_resp:
+        return err_resp
 
     data = request.get_json() or {}
     raw_content = data.get("content", "").strip()
-    parent_id = data.get("parent_id")  # ID của bình luận cha nếu là trả lời (reply)
+    parent_id = data.get("parent_id")
 
     if not raw_content:
         return api_response(success=False, message="Nội dung bình luận không được để trống.", status_code=400)
 
-    # Nếu có parent_id, kiểm tra bình luận cha có tồn tại không
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         if not parent_comment or parent_comment.post_id != post.id:
             return api_response(success=False, message="Bình luận cha không hợp lệ.", status_code=400)
 
-    # Chống XSS an toàn bằng bleach
     clean_content = sanitize_html(raw_content)
 
     comment = Comment(post_id=post.id, user_id=user_id, parent_id=parent_id, content=clean_content)
@@ -247,7 +271,9 @@ def delete_comment(comment_id: int):
 
 @posts_bp.route("/tags", methods=["GET"])
 def get_tags():
-    posts = Post.query.filter_by(status="published").all()
+    user = get_current_user_optional()
+    # Chỉ đếm tag trên các bài viết mà user hiện tại được phép nhìn thấy (Stealth chống rò rỉ tag bí mật)
+    posts = visible_posts(user).all()
     tag_counts = {}
     for p in posts:
         if p.tags:
@@ -263,7 +289,7 @@ def get_tags():
 @admin_required()
 def get_admin_posts():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    return api_response(success=True, data=[p.to_dict(include_content=True) for p in posts])
+    return api_response(success=True, data=[p.to_dict(include_content=True, include_access=True) for p in posts])
 
 @posts_bp.route("/admin/posts/<int:post_id>", methods=["GET"])
 @admin_required()
@@ -271,12 +297,14 @@ def get_admin_post(post_id: int):
     post = Post.query.get(post_id)
     if not post:
         return api_response(success=False, message="Post not found.", status_code=404)
-    return api_response(success=True, data=post.to_dict(include_content=True))
+    return api_response(success=True, data=post.to_dict(include_content=True, include_access=True))
 
 @posts_bp.route("/posts", methods=["POST"])
 @posts_bp.route("/admin/posts", methods=["POST"])
 @admin_required()
 def create_post():
+    admin_id = int(get_jwt_identity())
+    admin_user = User.query.get(admin_id)
     data = request.get_json() or {}
     title = data.get("title", "").strip()
     content = data.get("content", "").strip()
@@ -285,22 +313,24 @@ def create_post():
         return api_response(success=False, message="Title and content are required.", status_code=400)
 
     slug = data.get("slug", "").strip() or generate_slug(title)
-    # Đảm bảo tính duy nhất của slug
     original_slug = slug
     counter = 1
     while Post.query.filter_by(slug=slug).first():
         slug = f"{original_slug}-{counter}"
         counter += 1
 
-    # Làm sạch nội dung chống XSS nếu là richtext
     content_type = data.get("content_type", "markdown")
     if content_type == "richtext":
         content = sanitize_html(content)
 
     status = data.get("status", "draft")
     published_at = datetime.utcnow() if status == "published" else None
+    visibility = data.get("visibility", "public")
+    if visibility not in ("public", "logged_in", "role", "custom", "unlisted"):
+        visibility = "public"
 
     post = Post(
+        author_id=admin_id,
         title=title,
         slug=slug,
         excerpt=data.get("excerpt", "").strip(),
@@ -308,27 +338,67 @@ def create_post():
         content_type=content_type,
         cover_image=data.get("cover_image", "").strip(),
         status=status,
+        visibility=visibility,
         tags=",".join([t.strip() for t in data.get("tags", [])]) if isinstance(data.get("tags"), list) else data.get("tags", "").strip(),
         lang=data.get("lang", "vi"),
         series_id=data.get("series_id"),
         order_index=data.get("order_index", 0),
         published_at=published_at
     )
-
     db.session.add(post)
+    db.session.flush()
+
+    # Thêm Whitelist Users
+    allowed_user_ids = data.get("allowed_user_ids") or []
+    if visibility == "custom" and isinstance(allowed_user_ids, list):
+        for uid in allowed_user_ids:
+            if uid:
+                db.session.add(PostAccessUser(post_id=post.id, user_id=int(uid), granted_by=admin_id))
+
+    # Thêm Whitelist Roles
+    allowed_roles = data.get("allowed_roles") or []
+    if visibility == "role" and isinstance(allowed_roles, list):
+        for r in allowed_roles:
+            if r:
+                db.session.add(PostAccessRole(post_id=post.id, role=str(r).strip()))
+
+    # Thêm Excluded Users (Loại trừ người dùng chỉ định)
+    excluded_user_ids = data.get("excluded_user_ids") or []
+    if isinstance(excluded_user_ids, list):
+        for uid in excluded_user_ids:
+            if uid:
+                db.session.add(PostExcludedUser(post_id=post.id, user_id=int(uid)))
+
     db.session.commit()
 
-    return api_response(success=True, data=post.to_dict(include_content=True), message="Post created successfully.", status_code=201)
+    # Ghi log Audit an ninh
+    AuditService.log(
+        action=f"Tạo bài viết mới [{visibility.upper()}]",
+        feature="Quản lý bài viết",
+        status="success",
+        user_id=admin_id,
+        username=admin_user.username if admin_user else "Admin",
+        target_type="post",
+        target_id=str(post.id),
+        target_name=post.title,
+        details={"visibility": visibility, "allowed_users": allowed_user_ids, "allowed_roles": allowed_roles},
+        commit=True
+    )
+
+    return api_response(success=True, data=post.to_dict(include_content=True, include_access=True), message="Post created successfully.", status_code=201)
 
 @posts_bp.route("/posts/<int:post_id>", methods=["PUT"])
 @posts_bp.route("/admin/posts/<int:post_id>", methods=["PUT"])
 @admin_required()
 def update_post(post_id: int):
+    admin_id = int(get_jwt_identity())
+    admin_user = User.query.get(admin_id)
     post = Post.query.get(post_id)
     if not post:
         return api_response(success=False, message="Post not found.", status_code=404)
 
     data = request.get_json() or {}
+    old_visibility = post.visibility or "public"
 
     if "title" in data:
         post.title = data["title"].strip()
@@ -357,8 +427,80 @@ def update_post(post_id: int):
     if "order_index" in data:
         post.order_index = data["order_index"]
 
+    # Cập nhật Visibility & Whitelist
+    new_visibility = data.get("visibility", post.visibility)
+    if new_visibility in ("public", "logged_in", "role", "custom", "unlisted"):
+        post.visibility = new_visibility
+
+    # Quản lý post_access_users nếu có gửi lên
+    added_users = []
+    removed_users = []
+    if "allowed_user_ids" in data and isinstance(data["allowed_user_ids"], list):
+        target_ids = set(int(uid) for uid in data["allowed_user_ids"] if uid)
+        existing_rules = PostAccessUser.query.filter_by(post_id=post.id).all()
+        existing_ids = set(r.user_id for r in existing_rules)
+
+        to_add = target_ids - existing_ids
+        to_del = existing_ids - target_ids
+
+        for uid in to_add:
+            db.session.add(PostAccessUser(post_id=post.id, user_id=uid, granted_by=admin_id))
+            added_users.append(uid)
+        for r in existing_rules:
+            if r.user_id in to_del:
+                db.session.delete(r)
+                removed_users.append(r.user_id)
+
+    # Quản lý post_access_roles
+    if "allowed_roles" in data and isinstance(data["allowed_roles"], list):
+        PostAccessRole.query.filter_by(post_id=post.id).delete()
+        for r in data["allowed_roles"]:
+            if r:
+                db.session.add(PostAccessRole(post_id=post.id, role=str(r).strip()))
+
+    # Quản lý post_excluded_users
+    added_excluded = []
+    removed_excluded = []
+    if "excluded_user_ids" in data and isinstance(data["excluded_user_ids"], list):
+        target_excluded_ids = set(int(uid) for uid in data["excluded_user_ids"] if uid)
+        existing_excluded = PostExcludedUser.query.filter_by(post_id=post.id).all()
+        existing_excluded_ids = set(r.user_id for r in existing_excluded)
+
+        to_add_ex = target_excluded_ids - existing_excluded_ids
+        to_del_ex = existing_excluded_ids - target_excluded_ids
+
+        for uid in to_add_ex:
+            db.session.add(PostExcludedUser(post_id=post.id, user_id=uid))
+            added_excluded.append(uid)
+        for r in existing_excluded:
+            if r.user_id in to_del_ex:
+                db.session.delete(r)
+                removed_excluded.append(r.user_id)
+
     db.session.commit()
-    return api_response(success=True, data=post.to_dict(include_content=True), message="Post updated successfully.")
+
+    # Ghi log Audit nếu có thay đổi quyền
+    if old_visibility != post.visibility or added_users or removed_users or added_excluded or removed_excluded:
+        AuditService.log(
+            action="Thay đổi phân quyền bài viết",
+            feature="Phân quyền bài viết",
+            status="success",
+            user_id=admin_id,
+            username=admin_user.username if admin_user else "Admin",
+            target_type="post",
+            target_id=str(post.id),
+            target_name=post.title,
+            details={
+                "visibility": [old_visibility, post.visibility],
+                "added_users": added_users,
+                "removed_users": removed_users,
+                "added_excluded_users": added_excluded,
+                "removed_excluded_users": removed_excluded
+            },
+            commit=True
+        )
+
+    return api_response(success=True, data=post.to_dict(include_content=True, include_access=True), message="Post updated successfully.")
 
 @posts_bp.route("/posts/<int:post_id>", methods=["DELETE"])
 @posts_bp.route("/admin/posts/<int:post_id>", methods=["DELETE"])

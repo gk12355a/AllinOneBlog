@@ -43,7 +43,7 @@ export default function SpotlightModal() {
       setIsLoading(true);
       try {
         const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
-        setResults(res.data);
+        setResults(res?.data || res || { posts: [], projects: [], videos: [], albums: [] });
       } catch (err) {
         console.error(err);
       } finally {
