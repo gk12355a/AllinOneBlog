@@ -9,7 +9,11 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_fallback_jwt_secret_key_minimum_256_bits")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", 86400)))
     
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///database.sqlite")
+    db_url = os.getenv("DATABASE_URL", "sqlite:///database.sqlite")
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    
+    SQLALCHEMY_DATABASE_URI = db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", os.getenv("UPLOAD_FOLDER", "uploads"))
