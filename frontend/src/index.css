@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --color-scheme: light;
+    color-scheme: light;
+    background-color: #fafafa;
+    color: #18181b;
+  }
+  
+  html.dark {
+    --color-scheme: dark;
+    color-scheme: dark;
+    background-color: #09090b;
+    color: #f4f4f5;
+  }
+
+  body {
+    background-color: inherit;
+    color: inherit;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Global reading font size variables controlled by data-reading-size */
+  html[data-reading-size="small"] {
+    --reading-font-size: 15px;
+    --reading-line-height: 1.7;
+  }
+  html[data-reading-size="medium"], html:not([data-reading-size]) {
+    --reading-font-size: 16px;
+    --reading-line-height: 1.75;
+  }
+  html[data-reading-size="large"] {
+    --reading-font-size: 18px;
+    --reading-line-height: 1.85;
+  }
+
+  .blog-content-preview, .blog-reading-content {
+    font-size: var(--reading-font-size, 16px);
+    line-height: var(--reading-line-height, 1.75);
+  }
+
+  /* Custom smooth dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html.dark ::-webkit-scrollbar-track {
+    background: #09090b;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #27272a;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+  }
+}
+
+/* Định nghĩa rõ ràng các lớp font để đảm bảo hiển thị đúng */
+.font-reading-serif {
+  font-family: Merriweather, Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+
+.font-reading-sans {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.font-reading-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+}
+
+/* Dark mode glowing card effect */
+.dark-glow {
+  box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.12);
+}
+
+.dark-border-glow {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Markdown Content Typography */
+.markdown-content {
+  line-height: 1.8;
+}
+
+.markdown-content h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.25;
+  color: #18181b;
+  letter-spacing: -0.025em;
+}
+
+.dark .markdown-content h1 {
+  color: #f4f4f5;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  line-height: 1.35;
+  color: #18181b;
+  border-bottom: 1px solid #e4e4e7;
+  letter-spacing: -0.02em;
+}
+
+.dark .markdown-content h2 {
+  color: #f4f4f5;
+  border-bottom-color: #27272a;
+}
+
+.markdown-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  color: #18181b;
+}
+
+.dark .markdown-content h3 {
+  color: #f4f4f5;
+}
+
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #18181b;
+}
+
+.dark .markdown-content h4,
+.dark .markdown-content h5,
+.dark .markdown-content h6 {
+  color: #f4f4f5;
+}
+
+.markdown-content p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-content ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content ul > li {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+  list-style-type: disc !important;
+}
+
+.markdown-content ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content ol > li {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+  list-style-type: decimal !important;
+}
+
+.markdown-content strong,
+.markdown-content b {
+  font-weight: 700;
+  color: #09090b;
+}
+
+.dark .markdown-content strong,
+.dark .markdown-content b {
+  color: #fafafa;
+}
+
+.markdown-content a {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.markdown-content a:hover {
+  color: #4338ca;
+}
+
+.dark .markdown-content a {
+  color: #818cf8;
+}
+
+.dark .markdown-content a:hover {
+  color: #a5b4fc;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #6366f1;
+  padding-left: 1rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  font-style: italic;
+  color: #52525b;
+  background-color: #fafafa;
+  border-radius: 0 0.75rem 0.75rem 0;
+}
+
+.dark .markdown-content blockquote {
+  color: #a1a1aa;
+  background-color: rgba(39, 39, 42, 0.4);
+}
+
+.markdown-content code:not(pre code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875em;
+  background-color: #f4f4f5;
+  color: #4f46e5;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e4e4e7;
+}
+
+.dark .markdown-content code:not(pre code) {
+  background-color: #27272a;
+  color: #a5b4fc;
+  border-color: #3f3f46;
+}
+
+.markdown-content pre {
+  background-color: #09090b;
+  color: #f4f4f5;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  overflow-x: auto;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #27272a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.markdown-content hr {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  border: 0;
+  border-top: 1px solid #e4e4e7;
+}
+
+.dark .markdown-content hr {
+  border-top-color: #27272a;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e4e4e7;
+  text-align: left;
+}
+
+.dark .markdown-content th,
+.dark .markdown-content td {
+  border-color: #27272a;
+}
+
+.markdown-content th {
+  background-color: #f4f4f5;
+  font-weight: 700;
+}
+
+.dark .markdown-content th {
+  background-color: #18181b;
+}
+
+.markdown-content img {
+  border-radius: 1rem;
+  max-width: 100%;
+  height: auto;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
