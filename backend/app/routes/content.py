@@ -5,7 +5,7 @@ from flask_jwt_extended import verify_jwt_in_request, get_jwt
 from app.extensions import db, limiter
 from app.models import Project, Video, Message, Certificate
 from app.services.ai_search_service import SearchEngineService
-from app.utils.helpers import api_response, admin_required
+from app.utils.helpers import api_response, admin_required, generate_slug
 
 content_bp = Blueprint("content", __name__)
 

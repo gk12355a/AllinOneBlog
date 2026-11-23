@@ -30,8 +30,8 @@ def test_series_crud(client, admin_token):
     series_id = res.get_json()["data"]["id"]
     slug = res.get_json()["data"]["slug"]
 
-    # 2. Xem danh sách series
-    res = client.get("/api/series")
+    # 2. Xem danh sách series (Admin hoặc đã có bài học)
+    res = client.get("/api/series", headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 200
     assert len(res.get_json()["data"]) >= 1
 
@@ -103,13 +103,13 @@ def test_videos_and_messages(client, admin_token):
     res = client.delete(f"/api/videos/{vid_id}", headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 200
 
-    # 2. Gửi tin nhắn liên hệ (Contact)
+    # 2. Gửi tin nhắn liên hệ (Contact) - Phải đăng nhập
     res = client.post("/api/contact", json={
         "name": "Khách tuyển dụng",
         "email": "hr@recruiter.com",
         "subject": "Cơ hội việc làm",
         "message": "Chào bạn, chúng tôi muốn mời bạn phỏng vấn."
-    })
+    }, headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 201
     msg_id = res.get_json()["data"]["id"]
 
@@ -119,7 +119,7 @@ def test_videos_and_messages(client, admin_token):
     assert len(res.get_json()["data"]) >= 1
 
     # Đánh dấu đã đọc
-    res = client.put(f"/api/admin/messages/{msg_id}/read", headers={"Authorization": f"Bearer {admin_token}"})
+    res = client.put(f"/api/admin/messages/{msg_id}/status", json={"is_read": True}, headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 200
     assert res.get_json()["data"]["is_read"] is True
 
