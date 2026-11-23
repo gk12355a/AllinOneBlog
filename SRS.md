@@ -16,6 +16,10 @@ Tài liệu Đặc tả Yêu cầu Phần mềm (Software Requirements Specifica
 - **Thư viện Video Showcase**: Nhúng và phát video YouTube/Vimeo/Cloudinary.
 - **Trình tìm kiếm toàn cục Spotlight (`Ctrl + K`)**: Tra cứu tức thì gộp Projects, Posts, Videos, Albums.
 - **Quản lý Media độc lập & SEO Tự động (Sitemap & RSS Feed)**.
+- **Hệ thống Quản trị Người dùng & Bảo mật Chuyên sâu**: Phân quyền, khóa tài khoản, Admin reset password với thu hồi phiên tức thì (`token_version`), giám sát Realtime Online Presence qua Socket.IO.
+- **Bảo vệ L7 Anti-DDoS & Rate Limiting Thông Minh**: Kết hợp `ProxyFix`, rate limiting định danh `user_id` / `ip_address`, chuẩn hóa `Retry-After: 60` và ghi Audit Log.
+- **Phân trang Phổ quát (Universal Pagination & Rows Per Page)**: Hỗ trợ tùy chỉnh số dòng hiển thị (5, 10, 20, 50 dòng/trang) đồng bộ trên toàn bộ 9 tab quản trị.
+- **Tab Ẩn Bí Mật (Secret 28-Day Cycle Tracker)**: Truy cập bằng phím tắt `Ctrl + Shift + H`, bảo vệ 2 lớp bằng mã PIN độc lập, đồng hồ tròn chu kỳ 28 ngày và hệ thống gợi ý chăm sóc tâm lý.
 
 ### 1.2 Phạm vi dự án (Scope)
 Hệ thống là nền tảng cá nhân hóa tối cao phục vụ hai nhóm đối tượng:
@@ -207,6 +211,17 @@ erDiagram
         text message
         boolean is_read
         datetime created_at
+    }
+
+    CYCLE_SETTINGS {
+        int id PK
+        string pin_hash
+        string partner_name
+        int cycle_length
+        int period_length
+        date last_period_date
+        text notes
+        datetime updated_at
     }
 
     USERS ||--o{ READING_HISTORY : has
@@ -534,3 +549,13 @@ flowchart TD
 | **TC-SEC-03** | SQL Injection Test | Tham số truyền vào dạng `' OR 1=1 --` | SQLAlchemy ORM xử lý dạng parameterized, không bị rò rỉ dữ liệu. |
 | **TC-SEC-04** | CORS Header Check | Gửi request từ domain không thuộc `.env` `CORS_ORIGINS` | Không trả về header `Access-Control-Allow-Origin`, chặn truy cập chéo. |
 | **TC-SEO-01**  | `GET /sitemap.xml` & `GET /rss.xml` | Public | Trả về chuẩn XML định dạng đúng của Sitemap và RSS 2.0 Feed. |
+
+#### 8.2.9 Nhóm 9: Kiểm thử Quản trị Người Dùng, Reset Password & Cycle Tracker Bí Mật
+| Mã Test | Endpoint / Chức năng | Dữ liệu đầu vào / Điều kiện | Kết quả kỳ vọng (Expected Output) |
+| :--- | :--- | :--- | :--- |
+| **TC-USER-01** | `POST /api/admin/users/:id/reset-password` | Token Admin, payload `{ "password": "NewSecurePass!23" }` | Trả về `200 OK`, cập nhật mật khẩu, tăng `token_version` để thu hồi toàn bộ phiên cũ của user, reset attempts về 0. |
+| **TC-USER-02** | `POST /api/admin/users/:id/reset-password` | Token User thông thường | Trả về `403 Forbidden` (Chỉ Admin mới có quyền reset). |
+| **TC-CYCLE-01**| `POST /api/admin/cycle/verify` | Token Admin, payload `{ "pin": "123456" }` | Trả về `200 OK`, mở khóa dữ liệu chu kỳ 28 ngày. |
+| **TC-CYCLE-02**| `POST /api/admin/cycle/verify` | Token Admin, sai mã PIN | Trả về `401 Unauthorized` kèm thông báo lỗi. |
+| **TC-CYCLE-03**| `PUT /api/admin/cycle` | Token Admin, cập nhật ngày bắt đầu, độ dài chu kỳ và PIN mới | Trả về `200 OK`, lưu trữ mã hóa và tính toán lại 4 giai đoạn sinh học. |
+| **TC-DDOS-01** | Rate Limit Verification | Spam endpoint `/api/auth/login` > 5 req/min | Trả về `429 Too Many Requests`, header `Retry-After: 60`, tự động ghi Audit Log. |
