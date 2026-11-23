@@ -28,5 +28,5 @@ RUN mkdir -p /app/uploads /app/instance /app/logs
 
 EXPOSE 5000
 
-# Chạy backend qua Gunicorn worker eventlet để hỗ trợ WebSocket & Flask-SocketIO mượt mà
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "run:app"]
+# Chạy backend qua Gunicorn worker gthread hỗ trợ đa luồng và WebSocket native
+CMD ["gunicorn", "--worker-class", "gthread", "-w", "1", "--threads", "8", "--bind", "0.0.0.0:5000", "run:app"]
