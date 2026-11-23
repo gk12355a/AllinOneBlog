@@ -156,8 +156,12 @@ export default function Home() {
         <div className="shrink-0 relative">
           <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-3xl overflow-hidden p-1.5 bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 shadow-2xl">
             <img
-              src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80'}
-              alt={profile?.full_name}
+              src={profile?.avatar_url || '/Ảnh chân dung.jpg'}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/avatar_default.jpg';
+              }}
+              alt={profile?.full_name || 'Avatar'}
               className="w-full h-full object-cover rounded-2xl bg-zinc-100 dark:bg-zinc-800"
             />
           </div>
