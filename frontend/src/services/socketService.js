@@ -4,9 +4,10 @@ let socket = null;
 
 export const getSocket = () => {
   const token = localStorage.getItem('token');
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
   if (!socket) {
-    socket = io('/', {
+    socket = io(socketUrl, {
       path: '/socket.io',
       transports: ['polling', 'websocket'],
       upgrade: true,
