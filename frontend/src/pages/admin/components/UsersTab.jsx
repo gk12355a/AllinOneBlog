@@ -1,17 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, ShieldAlert, UserCheck, UserX, 
   Search, AlertCircle, CheckCircle2, MoreVertical, 
-  Clock, Laptop, Smartphone, Tablet, HelpCircle
+  Clock, Laptop, Smartphone, Tablet, HelpCircle,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Radio, Wifi, Circle, KeyRound, Sparkles, Copy, Check, Eye, EyeOff
 } from 'lucide-react';
 import userService from '../../../services/userService';
 import { useApp } from '../../../contexts/AppContext';
+import { getSocket } from '../../../services/socketService';
+import PaginationControl from './PaginationControl';
 
 export default function UsersTab({ users = [], currentUser, onRefresh }) {
   const { lang } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [onlineFilter, setOnlineFilter] = useState('all'); // 'all' | 'online' | 'offline'
+
+  // Phân trang & Tùy chỉnh số dòng hiển thị
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // 5, 10, 20, 50
+
+  // Danh sách ID các User đang online (nhận realtime từ WebSocket và từ API)
+  const [onlineUserIds, setOnlineUserIds] = useState(() => {
+    return users.filter(u => u.is_online).map(u => u.id);
+  });
+
+  // Lắng nghe WebSocket sự kiện users:online
+  useEffect(() => {
+    const socket = getSocket();
+    const handleUsersOnline = (payload) => {
+      if (payload && Array.isArray(payload.online_user_ids)) {
+        setOnlineUserIds(payload.online_user_ids);
+      }
+    };
+
+    socket.on('users:online', handleUsersOnline);
+
+    // Chủ động request danh sách online ngay khi mở tab
+    const token = localStorage.getItem('token');
+    socket.emit('admin:get_online_users', { token });
+
+    return () => {
+      socket.off('users:online', handleUsersOnline);
+    };
+  }, []);
+
+  // Cập nhật onlineUserIds nếu users prop thay đổi
+  useEffect(() => {
+    const idsFromProps = users.filter(u => u.is_online).map(u => u.id);
+    if (idsFromProps.length > 0) {
+      setOnlineUserIds(prev => Array.from(new Set([...prev, ...idsFromProps])));
+    }
+  }, [users]);
 
   // Modal State cho Khóa / Mở khóa
   const [statusModal, setStatusModal] = useState({
@@ -30,18 +72,27 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
     loading: false
   });
 
-  // Helper hiển thị icon thiết bị
-  const renderDeviceIcon = (deviceType) => {
-    switch (deviceType?.toLowerCase()) {
-      case 'desktop': return <Laptop className="w-3.5 h-3.5 text-zinc-400" title="Máy tính (Desktop)" />;
-      case 'mobile': return <Smartphone className="w-3.5 h-3.5 text-indigo-400" title="Điện thoại (Mobile)" />;
-      case 'tablet': return <Tablet className="w-3.5 h-3.5 text-amber-400" title="Máy tính bảng (Tablet)" />;
-      default: return <HelpCircle className="w-3.5 h-3.5 text-zinc-500" title="Không xác định" />;
-    }
-  };
+  // Modal State cho Reset Mật khẩu
+  const [resetModal, setResetModal] = useState({
+    isOpen: false,
+    user: null,
+    password: '',
+    showPassword: true,
+    copied: false,
+    loading: false,
+    error: '',
+    successMessage: ''
+  });
+
+  // Reset về trang 1 khi thay đổi điều kiện lọc hoặc đổi pageSize
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, statusFilter, onlineFilter, pageSize]);
 
   // Lọc người dùng
   const filteredUsers = users.filter(u => {
+    const isOnline = onlineUserIds.includes(u.id);
+
     const matchSearch = u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         u.display_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -49,8 +100,22 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
     const matchStatus = statusFilter === 'all' || 
                         (statusFilter === 'active' && u.is_active && !u.is_locked) ||
                         (statusFilter === 'disabled' && (!u.is_active || u.is_locked));
-    return matchSearch && matchRole && matchStatus;
+    const matchOnline = onlineFilter === 'all' || 
+                        (onlineFilter === 'online' && isOnline) ||
+                        (onlineFilter === 'offline' && !isOnline);
+
+    return matchSearch && matchRole && matchStatus && matchOnline;
   });
+
+  // Tính toán dữ liệu theo phân trang
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const validCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  const onlineCount = users.filter(u => onlineUserIds.includes(u.id)).length;
 
   // Mở modal khóa/mở khóa
   const handleOpenStatusModal = (u, targetActive) => {
@@ -106,15 +171,97 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
     }
   };
 
+  // Sinh mật khẩu ngẫu nhiên an toàn (10 ký tự: Hoa, thường, số, ký tự đặc biệt)
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let res = '';
+    for (let i = 0; i < 10; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res;
+  };
+
+  // Mở modal Reset Password
+  const handleOpenResetModal = (u) => {
+    const generated = generateRandomPassword();
+    setResetModal({
+      isOpen: true,
+      user: u,
+      password: generated,
+      showPassword: true,
+      copied: false,
+      loading: false,
+      error: '',
+      successMessage: ''
+    });
+  };
+
+  // Copy mật khẩu vào Clipboard
+  const handleCopyPassword = () => {
+    if (!resetModal.password) return;
+    navigator.clipboard.writeText(resetModal.password);
+    setResetModal(prev => ({ ...prev, copied: true }));
+    setTimeout(() => {
+      setResetModal(prev => ({ ...prev, copied: false }));
+    }, 2000);
+  };
+
+  // Xác nhận Reset Password
+  const handleConfirmResetPassword = async () => {
+    if (!resetModal.user) return;
+    if (!resetModal.password || resetModal.password.length < 6) {
+      setResetModal(prev => ({ ...prev, error: 'Mật khẩu phải có ít nhất 6 ký tự.' }));
+      return;
+    }
+    try {
+      setResetModal(prev => ({ ...prev, loading: true, error: '' }));
+      const res = await userService.resetUserPassword(resetModal.user.id, {
+        password: resetModal.password
+      });
+      setResetModal(prev => ({ 
+        ...prev, 
+        loading: false, 
+        successMessage: res.message || 'Đặt lại mật khẩu thành công!' 
+      }));
+      setTimeout(() => {
+        setResetModal({
+          isOpen: false,
+          user: null,
+          password: '',
+          showPassword: true,
+          copied: false,
+          loading: false,
+          error: '',
+          successMessage: ''
+        });
+        if (onRefresh) onRefresh();
+      }, 1500);
+    } catch (err) {
+      setResetModal(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: err.response?.data?.message || err.message || 'Đặt lại mật khẩu thất bại.' 
+      }));
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <span>{lang === 'vi' ? 'Quản Lý Người Dùng & Phân Quyền' : 'User Management & Roles'}</span>
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <span>{lang === 'vi' ? 'Quản Lý Người Dùng & Phân Quyền' : 'User Management & Roles'}</span>
+            </h2>
+            {onlineCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{onlineCount} {lang === 'vi' ? 'đang online' : 'online'}</span>
+              </span>
+            )}
+          </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             {lang === 'vi' 
               ? 'Kiểm soát danh sách thành viên, phân quyền Admin/User, khóa và thu hồi phiên truy cập tức thì.' 
@@ -136,7 +283,18 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Lọc Trạng thái Online */}
+          <select
+            value={onlineFilter}
+            onChange={(e) => setOnlineFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">{lang === 'vi' ? 'Tất cả kết nối' : 'All Connection'}</option>
+            <option value="online">🟢 {lang === 'vi' ? 'Đang Online' : 'Online'}</option>
+            <option value="offline">⚪ {lang === 'vi' ? 'Ngoại tuyến (Offline)' : 'Offline'}</option>
+          </select>
+
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -174,7 +332,7 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-zinc-400">
                     <Users className="w-8 h-8 mx-auto stroke-1 mb-2 text-zinc-500" />
@@ -182,31 +340,53 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                paginatedUsers.map((u) => {
                   const isCurrent = currentUser?.id === u.id;
                   const isLocked = !u.is_active || u.is_locked;
+                  const isOnline = onlineUserIds.includes(u.id);
 
                   return (
                     <tr key={u.id} className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition">
-                      {/* Thành viên */}
+                      {/* Thành viên + Avatar có Tín hiệu Online */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 border border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-                            {u.avatar_url ? (
-                              <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
-                            ) : (
-                              u.username?.charAt(0).toUpperCase()
-                            )}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 border border-zinc-200 dark:border-zinc-700">
+                              {u.avatar_url ? (
+                                <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
+                              ) : (
+                                u.username?.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            {/* Chấm tín hiệu Online/Offline */}
+                            <span 
+                              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center ${
+                                isOnline 
+                                  ? 'bg-emerald-500 shadow-xs' 
+                                  : 'bg-zinc-300 dark:bg-zinc-600'
+                              }`}
+                              title={isOnline ? 'Đang Online' : 'Ngoại tuyến (Offline)'}
+                            >
+                              {isOnline && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-emerald-100 animate-ping opacity-75"></span>
+                              )}
+                            </span>
                           </div>
+
                           <div className="min-w-0">
-                            <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-1.5">
+                            <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-1.5">
                               <span>{u.display_name || u.username}</span>
                               {isCurrent && (
                                 <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-800/50">
                                   Bạn
                                 </span>
                               )}
-                            </p>
+                              {isOnline && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                  • online
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-zinc-400 truncate">@{u.username}</p>
                           </div>
                         </div>
@@ -275,6 +455,16 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
                             </button>
                           )}
 
+                          {/* Reset Mật khẩu */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResetModal(u)}
+                            className="p-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+                            title="Đặt lại mật khẩu cho tài khoản này"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+
                           {/* Khóa / Mở khóa */}
                           {!isCurrent && (
                             <button
@@ -299,6 +489,17 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
             </tbody>
           </table>
         </div>
+
+        {/* Thanh Điều Hướng Phân Trang & Tùy chỉnh số lượng dòng (Rows per page) */}
+        <PaginationControl
+          currentPage={validCurrentPage}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="thành viên"
+          itemLabelEn="users"
+        />
       </div>
 
       {/* Modal Khóa / Mở khóa tài khoản */}
@@ -395,6 +596,113 @@ export default function UsersTab({ users = [], currentUser, onRefresh }) {
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
               >
                 {roleModal.loading ? 'Đang cập nhật...' : 'Xác nhận đổi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Đặt lại Mật khẩu (Reset Password) */}
+      {resetModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                  Đặt lại mật khẩu cho thành viên
+                </h4>
+                <p className="text-xs text-zinc-400">@{resetModal.user?.username} ({resetModal.user?.email})</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+              Bạn có thể tự nhập mật khẩu mới hoặc sử dụng mật khẩu được tạo ngẫu nhiên bên dưới. Khi hoàn tất, <strong className="text-rose-500">toàn bộ phiên đăng nhập hiện tại của người dùng này sẽ bị thu hồi ngay lập tức</strong> trên mọi thiết bị.
+            </p>
+
+            {resetModal.error && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{resetModal.error}</span>
+              </div>
+            )}
+
+            {resetModal.successMessage && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{resetModal.successMessage}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  Mật khẩu mới <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setResetModal(p => ({ ...p, password: generateRandomPassword() }))}
+                  className="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Tạo ngẫu nhiên khác</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type={resetModal.showPassword ? 'text' : 'password'}
+                  required
+                  value={resetModal.password}
+                  onChange={(e) => setResetModal(p => ({ ...p, password: e.target.value, error: '' }))}
+                  placeholder="Nhập ít nhất 6 ký tự..."
+                  className="w-full pl-3 pr-20 py-2.5 rounded-xl text-xs font-mono bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <div className="absolute right-2 top-1.5 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleCopyPassword}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg hover:bg-zinc-200/60 dark:hover:bg-zinc-700 transition"
+                    title="Sao chép mật khẩu"
+                  >
+                    {resetModal.copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetModal(p => ({ ...p, showPassword: !p.showPassword }))}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg hover:bg-zinc-200/60 dark:hover:bg-zinc-700 transition"
+                    title={resetModal.showPassword ? 'Ẩn' : 'Hiện'}
+                  >
+                    {resetModal.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {resetModal.copied && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  <span>Đã sao chép mật khẩu vào clipboard! Hãy gửi cho thành viên.</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setResetModal({ isOpen: false, user: null, password: '', showPassword: true, copied: false, loading: false, error: '', successMessage: '' })}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={resetModal.loading || !!resetModal.successMessage}
+                onClick={handleConfirmResetPassword}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 disabled:opacity-50"
+              >
+                {resetModal.loading ? 'Đang đặt lại...' : 'Xác nhận đặt lại'}
               </button>
             </div>
           </div>

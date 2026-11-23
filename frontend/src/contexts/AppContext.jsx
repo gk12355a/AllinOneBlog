@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import vi from '../locales/vi.json';
 import en from '../locales/en.json';
+import { getSocket, disconnectSocket } from '../services/socketService';
 
 const dictionaries = { vi, en };
 
@@ -63,16 +64,29 @@ export const AppProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Duy trì kết nối realtime Socket.IO khi người dùng truy cập web
+  useEffect(() => {
+    const socket = getSocket();
+    return () => {
+      // keep socket alive across page navigation
+    };
+  }, [user]);
+
   const loginUser = (userData, token) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+    // Kích hoạt socket ngay với token mới
+    setTimeout(() => {
+      getSocket();
+    }, 50);
   };
 
   const logoutUser = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    disconnectSocket();
   };
 
   const updateUserData = (updatedUser) => {

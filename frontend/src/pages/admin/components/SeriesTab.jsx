@@ -24,6 +24,7 @@ import {
 import { seriesService } from '../../../services/seriesService';
 import { mediaService } from '../../../services/mediaService';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function SeriesTab({ allPosts = [], allVideos = [], onSeriesUpdated }) {
   const { t, showToast } = useApp();
@@ -36,6 +37,10 @@ export default function SeriesTab({ allPosts = [], allVideos = [], onSeriesUpdat
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Internal tab in edit form: 'info' (Thông tin) | 'curriculum' (Bài học & Lộ trình)
   const [activeFormTab, setActiveFormTab] = useState('info');
@@ -392,6 +397,17 @@ export default function SeriesTab({ allPosts = [], allVideos = [], onSeriesUpdat
     );
   }, [seriesList, searchFilter]);
 
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedSeries = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSeries.slice(start, start + pageSize);
+  }, [filteredSeries, currentPage, pageSize]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header & Controls Bar */}
@@ -447,7 +463,7 @@ export default function SeriesTab({ allPosts = [], allVideos = [], onSeriesUpdat
             <p className="text-sm font-medium">Chưa có Series nào phù hợp.</p>
           </div>
         ) : (
-          filteredSeries.map((s) => (
+          paginatedSeries.map((s) => (
             <div
               key={s.id}
               onClick={() => fetchSeriesDetail(s)}
@@ -509,6 +525,17 @@ export default function SeriesTab({ allPosts = [], allVideos = [], onSeriesUpdat
             </div>
           ))
         )}
+
+        {/* Thanh Điều Hướng Phân Trang */}
+        <PaginationControl
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filteredSeries.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="series"
+          itemLabelEn="series"
+        />
       </div>
 
       {/* POPUP MODAL FOR CREATE / EDIT SERIES */}

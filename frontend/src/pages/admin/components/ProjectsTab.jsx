@@ -17,6 +17,7 @@ import {
 import { GithubIcon } from '../../../components/SocialIcons';
 import { contentApi, mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function ProjectsTab({ projects = [], onProjectsUpdated }) {
   const { t, showToast } = useApp();
@@ -39,6 +40,10 @@ export default function ProjectsTab({ projects = [], onProjectsUpdated }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Common quick tech suggestions
   const suggestedTechs = ['React', 'TypeScript', 'TailwindCSS', 'Python', 'Flask', 'Docker', 'Kubernetes', 'PostgreSQL', 'Redis'];
@@ -187,6 +192,17 @@ export default function ProjectsTab({ projects = [], onProjectsUpdated }) {
     return titleMatch || techMatch;
   });
 
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedProjects = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProjects.slice(start, start + pageSize);
+  }, [filteredProjects, currentPage, pageSize]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header & Search Bar */}
@@ -242,7 +258,7 @@ export default function ProjectsTab({ projects = [], onProjectsUpdated }) {
             <p className="text-sm font-medium">{t('admin.no_projects')}</p>
           </div>
         ) : (
-          filteredProjects.map((proj) => {
+          paginatedProjects.map((proj) => {
             const parsedTechs = Array.isArray(proj.tech_stack)
               ? proj.tech_stack
               : (proj.tech_stack || '')
@@ -360,6 +376,17 @@ export default function ProjectsTab({ projects = [], onProjectsUpdated }) {
             );
           })
         )}
+
+        {/* Thanh Điều Hướng Phân Trang */}
+        <PaginationControl
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filteredProjects.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="dự án"
+          itemLabelEn="projects"
+        />
       </div>
 
       {/* POPUP MODAL FOR CREATE / EDIT PROJECT */}

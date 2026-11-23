@@ -718,23 +718,29 @@ ${(msg.replies || []).map(r => `[${r.sender_name} - ${r.sent_at}]:\n${r.reply_co
                                       const isImg = att.file_type === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(att.filename || '');
                                       if (isImg) {
                                         return (
-                                          <a
-                                            key={idx}
-                                            href={att.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="group block relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 max-w-[200px] shadow-sm hover:opacity-95 transition"
-                                          >
-                                            <img
-                                              src={att.url}
-                                              alt={att.filename}
-                                              className="max-h-40 w-auto object-cover rounded-lg group-hover:scale-105 transition duration-200"
-                                            />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
-                                              <ExternalLink className="w-3.5 h-3.5" />
-                                              <span>Xem ảnh</span>
+                                          <div key={idx} className="space-y-1">
+                                            <a
+                                              href={att.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="group block relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 shadow-sm hover:opacity-95 transition"
+                                            >
+                                              <img
+                                                src={att.url}
+                                                alt={att.filename || 'Ảnh đính kèm'}
+                                                className="max-h-48 max-w-[280px] w-auto h-auto object-contain rounded-lg group-hover:scale-105 transition duration-200"
+                                                loading="lazy"
+                                              />
+                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                <span>Xem ảnh gốc</span>
+                                              </div>
+                                            </a>
+                                            <div className="flex items-center justify-between text-[10px] text-zinc-400 px-1">
+                                              <span className="truncate max-w-[180px]">{att.filename}</span>
+                                              <span>{att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''}</span>
                                             </div>
-                                          </a>
+                                          </div>
                                         );
                                       }
                                       return (
@@ -770,10 +776,12 @@ ${(msg.replies || []).map(r => `[${r.sender_name} - ${r.sent_at}]:\n${r.reply_co
 
                     {/* 2. Danh sách các lượt trao đổi (MessageReplies) */}
                     {selectedMessage.replies && selectedMessage.replies.map((reply) => {
-                      const isFromMe = (reply.user_id && reply.user_id === user?.id) || 
-                                       (reply.sender_type === 'admin' && user?.role === 'admin' && reply.admin_id === user?.id) ||
-                                       (reply.sender_type === 'user' && !reply.admin_id && user?.role !== 'admin');
-                      const isAdmin = reply.sender_type === 'admin' || (!reply.user_id && reply.sender_type !== 'user');
+                      const isAdminReply = reply.sender_type === 'admin' || (!reply.user_id && Boolean(reply.admin_id));
+                      const isFromMe = isAdminReply 
+                        ? (user?.role === 'admin' && (reply.admin_id ? reply.admin_id === user?.id : true))
+                        : (user?.role !== 'admin' && reply.user_id === user?.id);
+                      
+                      const isAdmin = isAdminReply;
                       const senderDisplayName = reply.sender_name || (isAdmin ? 'Quản trị viên (Admin)' : (selectedMessage.recipient_info?.display_name || selectedMessage.name || 'Thành viên'));
 
                       return (
@@ -822,23 +830,29 @@ ${(msg.replies || []).map(r => `[${r.sender_name} - ${r.sent_at}]:\n${r.reply_co
                                       const isImg = att.file_type === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(att.filename || '');
                                       if (isImg) {
                                         return (
-                                          <a
-                                            key={idx}
-                                            href={att.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="group block relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 max-w-[200px] shadow-sm hover:opacity-95 transition"
-                                          >
-                                            <img
-                                              src={att.url}
-                                              alt={att.filename}
-                                              className="max-h-40 w-auto object-cover rounded-lg group-hover:scale-105 transition duration-200"
-                                            />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
-                                              <ExternalLink className="w-3.5 h-3.5" />
-                                              <span>Xem ảnh</span>
+                                          <div key={idx} className="space-y-1">
+                                            <a
+                                              href={att.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="group block relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 shadow-sm hover:opacity-95 transition"
+                                            >
+                                              <img
+                                                src={att.url}
+                                                alt={att.filename || 'Ảnh đính kèm'}
+                                                className="max-h-48 max-w-[280px] w-auto h-auto object-contain rounded-lg group-hover:scale-105 transition duration-200"
+                                                loading="lazy"
+                                              />
+                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-medium gap-1">
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                <span>Xem ảnh gốc</span>
+                                              </div>
+                                            </a>
+                                            <div className="flex items-center justify-between text-[10px] text-zinc-400 px-1">
+                                              <span className="truncate max-w-[180px]">{att.filename}</span>
+                                              <span>{att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''}</span>
                                             </div>
-                                          </a>
+                                          </div>
                                         );
                                       }
                                       return (

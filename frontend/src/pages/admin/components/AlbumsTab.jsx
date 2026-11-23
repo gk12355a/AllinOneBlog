@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function AlbumsTab({ albums = [], onAlbumsUpdated }) {
   const { t, showToast } = useApp();
@@ -26,6 +27,10 @@ export default function AlbumsTab({ albums = [], onAlbumsUpdated }) {
   const [selectedAlbumDetail, setSelectedAlbumDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Form state for creating/editing album
   const initialForm = {
@@ -60,6 +65,17 @@ export default function AlbumsTab({ albums = [], onAlbumsUpdated }) {
         (a.description && a.description.toLowerCase().includes(q))
     );
   }, [albums, searchFilter]);
+
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedAlbums = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAlbums.slice(start, start + pageSize);
+  }, [filteredAlbums, currentPage, pageSize]);
 
   // Load full album detail (including photos) when an album is selected
   const fetchAlbumDetail = async (album) => {
@@ -329,7 +345,7 @@ export default function AlbumsTab({ albums = [], onAlbumsUpdated }) {
             <p className="text-xs">Chưa có album nào phù hợp.</p>
           </div>
         ) : (
-          filteredAlbums.map((alb) => (
+          paginatedAlbums.map((alb) => (
             <div
               key={alb.id}
               onClick={() => fetchAlbumDetail(alb)}
@@ -399,6 +415,17 @@ export default function AlbumsTab({ albums = [], onAlbumsUpdated }) {
             </div>
           ))
         )}
+
+        {/* Thanh Điều Hướng Phân Trang */}
+        <PaginationControl
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filteredAlbums.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="album"
+          itemLabelEn="albums"
+        />
       </div>
 
       {/* POPUP MODAL TẠO & CHỈNH SỬA ALBUM + QUẢN LÝ ẢNH */}

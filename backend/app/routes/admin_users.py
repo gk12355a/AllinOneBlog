@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, date
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.extensions import db, limiter
-from app.models import User, AuditLog
+from app.models import User, AuditLog, CycleSetting
 from app.utils.helpers import api_response, admin_required
 from app.services.audit_service import AuditService
 
@@ -12,6 +12,7 @@ admin_users_bp = Blueprint("admin_users", __name__)
 
 @admin_users_bp.route("/admin/users", methods=["GET"])
 @admin_required()
+@limiter.limit("60 per minute")
 def get_users():
     """Lấy danh sách người dùng kèm bộ lọc và tìm kiếm."""
     search = request.args.get("q", "").strip()
@@ -32,7 +33,21 @@ def get_users():
         query = query.filter_by(is_active=False)
 
     users = query.order_by(User.created_at.desc()).all()
-    return api_response(success=True, data=[u.to_dict() for u in users])
+    
+    # Kèm theo danh sách ID người dùng đang online
+    try:
+        from app.services.realtime_service import get_online_user_ids
+        online_ids = get_online_user_ids()
+    except Exception:
+        online_ids = []
+
+    user_dicts = []
+    for u in users:
+        d = u.to_dict()
+        d["is_online"] = (u.id in online_ids)
+        user_dicts.append(d)
+
+    return api_response(success=True, data=user_dicts, meta={"online_user_ids": online_ids})
 
 @admin_users_bp.route("/admin/users/<int:user_id>/status", methods=["PUT"])
 @admin_required()
@@ -175,6 +190,66 @@ def update_user_role(user_id: int):
         message=f"Đã cập nhật vai trò của @{target_user.username} thành '{new_role}'."
     )
 
+@admin_users_bp.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
+@admin_required()
+def admin_reset_password(user_id: int):
+    """
+    Admin đặt lại mật khẩu cho thành viên.
+    Tự động tăng token_version để thu hồi ngay lập tức mọi phiên đăng nhập cũ,
+    và reset số lần thử đăng nhập sai.
+    """
+    current_admin_id = int(get_jwt_identity())
+    admin_claims = get_jwt()
+    admin_username = admin_claims.get("username", "admin")
+
+    target_user = User.query.get(user_id)
+    if not target_user:
+        return api_response(success=False, message="Người dùng không tồn tại.", status_code=404)
+
+    data = request.get_json() or {}
+    new_password = data.get("password", "").strip()
+
+    if not new_password or len(new_password) < 6:
+        return api_response(
+            success=False, 
+            message="Mật khẩu mới phải có ít nhất 6 ký tự.", 
+            status_code=400
+        )
+
+    # Đặt mật khẩu mới
+    target_user.set_password(new_password)
+    # Thu hồi toàn bộ phiên đăng nhập cũ trên mọi thiết bị
+    target_user.token_version = (target_user.token_version or 1) + 1
+    # Reset các giới hạn brute-force nếu có
+    target_user.failed_login_attempts = 0
+    target_user.locked_until = None
+    target_user.updated_at = datetime.utcnow()
+
+    db.session.commit()
+
+    # Ghi Audit Log
+    AuditService.log(
+        action=f"Đặt lại mật khẩu cho @{target_user.username}",
+        feature="Quản trị người dùng",
+        status="success",
+        user_id=current_admin_id,
+        username=admin_username,
+        target_type="user",
+        target_id=str(target_user.id),
+        target_name=target_user.username,
+        details={
+            "revoked_sessions": True,
+            "reset_by_admin": admin_username
+        },
+        req=request
+    )
+
+    return api_response(
+        success=True,
+        data=target_user.to_dict(),
+        message=f"Đã đặt lại mật khẩu cho @{target_user.username} thành công. Toàn bộ phiên cũ đã được thu hồi."
+    )
+
 # --- 2. NHẬT KÝ HOẠT ĐỘNG (AUDIT LOGS) ---
 
 @admin_users_bp.route("/admin/audit-logs", methods=["GET"])
@@ -239,3 +314,88 @@ def get_audit_stats():
             "disabled_users": disabled_users_count
         }
     )
+
+# --- 3. THEO DÕI CHU KỲ BẢO MẬT (SECRET 28-DAY CYCLE TRACKER) ---
+
+@admin_users_bp.route("/admin/cycle/verify", methods=["POST"])
+@admin_required()
+@limiter.limit("10 per minute")
+def verify_cycle_pin():
+    """Xác thực mã PIN bảo vệ để mở khóa tab chu kỳ."""
+    data = request.get_json() or {}
+    pin = str(data.get("pin", "")).strip()
+    
+    setting = CycleSetting.query.first()
+    if not setting:
+        setting = CycleSetting(partner_name="Em Bé", cycle_length=28, period_length=5)
+        setting.set_pin("123456")
+        db.session.add(setting)
+        db.session.commit()
+
+    if setting.check_pin(pin):
+        return api_response(
+            success=True,
+            data=setting.to_dict(),
+            message="Xác thực mã PIN thành công."
+        )
+    return api_response(
+        success=False,
+        message="Mã PIN không chính xác. Vui lòng thử lại.",
+        status_code=401
+    )
+
+@admin_users_bp.route("/admin/cycle", methods=["GET"])
+@admin_required()
+def get_cycle_data():
+    """Lấy dữ liệu chu kỳ hiện tại."""
+    setting = CycleSetting.query.first()
+    if not setting:
+        setting = CycleSetting(partner_name="Em Bé", cycle_length=28, period_length=5)
+        setting.set_pin("123456")
+        db.session.add(setting)
+        db.session.commit()
+    return api_response(success=True, data=setting.to_dict())
+
+@admin_users_bp.route("/admin/cycle", methods=["PUT"])
+@admin_required()
+def update_cycle_data():
+    """Cập nhật ngày bắt đầu kỳ kinh, độ dài chu kỳ, tên hoặc đổi mã PIN."""
+    setting = CycleSetting.query.first()
+    if not setting:
+        setting = CycleSetting()
+        db.session.add(setting)
+
+    data = request.get_json() or {}
+
+    if "partner_name" in data:
+        setting.partner_name = str(data.get("partner_name", "")).strip() or "Em Bé"
+    if "cycle_length" in data:
+        try:
+            setting.cycle_length = max(20, min(45, int(data.get("cycle_length"))))
+        except (ValueError, TypeError):
+            pass
+    if "period_length" in data:
+        try:
+            setting.period_length = max(2, min(10, int(data.get("period_length"))))
+        except (ValueError, TypeError):
+            pass
+    if "last_period_date" in data:
+        raw_date = data.get("last_period_date")
+        if raw_date:
+            try:
+                setting.last_period_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        else:
+            setting.last_period_date = None
+    if "notes" in data:
+        setting.notes = str(data.get("notes", "")).strip()
+    
+    # Đổi PIN mới nếu được cung cấp
+    if "new_pin" in data and data.get("new_pin"):
+        new_pin = str(data.get("new_pin")).strip()
+        if len(new_pin) >= 4:
+            setting.set_pin(new_pin)
+
+    db.session.commit()
+    return api_response(success=True, data=setting.to_dict(), message="Đã cập nhật thông tin chu kỳ thành công.")

@@ -35,6 +35,7 @@ import MessagesTab from './components/MessagesTab';
 import VideosTab from './components/VideosTab';
 import UsersTab from './components/UsersTab';
 import AuditLogsTab from './components/AuditLogsTab';
+import CycleTrackerTab from './components/CycleTrackerTab';
 
 export default function AdminDashboard() {
   const { user, t, lang } = useApp();
@@ -70,6 +71,18 @@ export default function AdminDashboard() {
       setActiveTab(tabFromUrl);
     }
   }, [location.search]);
+
+  // Phím tắt bí mật: Ctrl + Shift + H (hoặc Cmd + Shift + H) để mở Tab Bí Mật Cycle Tracker
+  useEffect(() => {
+    const handleSecretShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'H' || e.key === 'h')) {
+        e.preventDefault();
+        handleSelectTab('cycle');
+      }
+    };
+    window.addEventListener('keydown', handleSecretShortcut);
+    return () => window.removeEventListener('keydown', handleSecretShortcut);
+  }, []);
 
   const handleSelectTab = (tabKey) => {
     setActiveTab(tabKey);
@@ -385,6 +398,10 @@ export default function AdminDashboard() {
 
           {activeTab === 'messages' && (
             <MessagesTab messages={messages} onMessagesUpdated={() => fetchAdminData(true)} />
+          )}
+
+          {activeTab === 'cycle' && (
+            <CycleTrackerTab />
           )}
         </div>
       </main>

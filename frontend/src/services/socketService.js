@@ -8,7 +8,8 @@ export const getSocket = () => {
   if (!socket) {
     socket = io('/', {
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
@@ -26,10 +27,15 @@ export const getSocket = () => {
         socket.auth.token = curToken;
       }
     });
-  } else if (socket.auth && token && socket.auth.token !== token) {
-    // Nếu token thay đổi (ví dụ login user khác), cập nhật và kết nối lại
-    socket.auth.token = token;
-    socket.disconnect().connect();
+  } else {
+    // Nếu socket đã tạo nhưng auth token chưa khớp hoặc vừa đăng nhập mới
+    const currentAuthToken = socket.auth?.token || '';
+    const storedToken = token || '';
+    if (currentAuthToken !== storedToken) {
+      if (!socket.auth) socket.auth = {};
+      socket.auth.token = storedToken;
+      socket.disconnect().connect();
+    }
   }
 
   return socket;

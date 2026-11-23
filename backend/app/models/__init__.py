@@ -951,3 +951,34 @@ class Notification(db.Model):
             "is_read": bool(self.is_read),
             "created_at": format_datetime_utc7(self.created_at)
         }
+
+class CycleSetting(db.Model):
+    __tablename__ = "cycle_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pin_hash = db.Column(db.String(255), nullable=True) # Mã PIN bảo vệ (mặc định '123456')
+    partner_name = db.Column(db.String(100), default="Em Bé") # Tên người yêu
+    cycle_length = db.Column(db.Integer, default=28) # Độ dài chu kỳ (thường 28 ngày)
+    period_length = db.Column(db.Integer, default=5) # Số ngày hành kinh (thường 4-7 ngày)
+    last_period_date = db.Column(db.Date, nullable=True) # Ngày bắt đầu kỳ kinh gần nhất (YYYY-MM-DD)
+    notes = db.Column(db.Text, default="") # Ghi chú cá nhân
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def set_pin(self, pin: str):
+        self.pin_hash = generate_password_hash(str(pin).strip())
+
+    def check_pin(self, pin: str) -> bool:
+        if not self.pin_hash:
+            # Nếu chưa đổi PIN, PIN mặc định là 123456
+            return str(pin).strip() == "123456"
+        return check_password_hash(self.pin_hash, str(pin).strip())
+
+    def to_dict(self):
+        return {
+            "partner_name": self.partner_name or "Em Bé",
+            "cycle_length": self.cycle_length or 28,
+            "period_length": self.period_length or 5,
+            "last_period_date": self.last_period_date.isoformat() if self.last_period_date else None,
+            "notes": self.notes or "",
+            "updated_at": format_datetime_utc7(self.updated_at)
+        }

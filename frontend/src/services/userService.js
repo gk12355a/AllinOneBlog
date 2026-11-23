@@ -17,6 +17,11 @@ export const userService = {
   getAdminUsers: (params) => api.get('/admin/users', { params }),
   updateUserStatus: (userId, data) => api.put(`/admin/users/${userId}/status`, data),
   updateUserRole: (userId, data) => api.put(`/admin/users/${userId}/role`, data),
+  resetUserPassword: (userId, data) => api.post(`/admin/users/${userId}/reset-password`, data),
+  // 28-day Cycle Tracker
+  verifyCyclePin: (data) => api.post('/admin/cycle/verify', data),
+  getCycleData: () => api.get('/admin/cycle'),
+  updateCycleData: (data) => api.put('/admin/cycle', data),
   // Audit Logs
   getAuditLogs: (params) => api.get('/admin/audit-logs', { params }),
   getAuditStats: () => api.get('/admin/audit-logs/stats'),

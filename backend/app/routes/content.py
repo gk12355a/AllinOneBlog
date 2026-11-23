@@ -306,7 +306,7 @@ def delete_video(video_id: int):
 # --- 3. CONTACT MESSAGES ---
 
 @content_bp.route("/contact", methods=["POST"])
-@limiter.limit("10 per hour")
+@limiter.limit("5 per minute; 30 per hour")
 def submit_contact():
     data = request.get_json() or {}
     
@@ -462,6 +462,7 @@ def submit_contact():
 
 @content_bp.route("/admin/messages", methods=["GET"])
 @admin_required()
+@limiter.limit("60 per minute")
 def list_messages():
     """
     Lấy danh sách tin nhắn kèm lọc status, category, search, gán sao, trạng thái SLA và phân loại.
@@ -778,23 +779,30 @@ def user_reply_message(message_id: int):
         return api_response(success=False, message="Vui lòng nhập nội dung phản hồi.", status_code=400)
 
     import json
-    # Thêm reply
+    # Thêm reply với định danh chuẩn xác dựa theo vai trò (role) của tài khoản đang đăng nhập
+    is_admin_user = (current_user.role == "admin")
     reply = MessageReply(
         message_id=msg.id,
-        user_id=user_id,
-        sender_type="user",
+        admin_id=user_id if is_admin_user else None,
+        user_id=None if is_admin_user else user_id,
+        sender_type="admin" if is_admin_user else "user",
         attachments=json.dumps(attachments) if isinstance(attachments, list) else "[]",
         reply_content=reply_content,
         sent_at=datetime.utcnow()
     )
     db.session.add(reply)
 
-    # Đánh dấu trạng thái tin nhắn
-    msg.status = "new"  # Admin cần xem phản hồi mới của user
-    msg.is_read = False # Đánh dấu chưa đọc cho admin
+    # Cập nhật trạng thái tin nhắn
+    if is_admin_user:
+        msg.status = "replied"
+        msg.replied_at = datetime.utcnow()
+    else:
+        msg.status = "new"  # Admin cần xem phản hồi mới của user
+        msg.is_read = False # Đánh dấu chưa đọc cho admin
+
     msg.last_reply_at = datetime.utcnow()
     if msg.is_closed and msg.user_can_reopen:
-        msg.is_closed = False # Tự động mở lại hội thoại khi user nhắn tiếp
+        msg.is_closed = False # Tự động mở lại hội thoại khi user/admin nhắn tiếp
 
     # Gửi thông báo tới Admin (gom theo hội thoại với dedupe_key để tránh ngập chuông)
     sender_name = current_user.display_name or current_user.username

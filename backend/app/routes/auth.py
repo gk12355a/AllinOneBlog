@@ -12,6 +12,7 @@ from app.utils.device_detector import get_client_ip
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute; 20 per hour")
 def register():
     data = request.get_json() or {}
     username = data.get("username", "").strip()
@@ -41,7 +42,7 @@ def register():
     return api_response(success=True, data=user.to_dict(), message="User registered successfully.", status_code=201)
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute; 30 per hour")
 def login():
     data = request.get_json() or {}
     identifier = data.get("identifier", "").strip()

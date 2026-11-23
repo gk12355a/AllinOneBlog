@@ -50,13 +50,15 @@ def sanitize_html(html_content: str) -> str:
     }
     return bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attributes, strip=True)
 
-def api_response(success: bool = True, data=None, message: str = "", status_code: int = 200):
-    """Chuẩn hóa cấu trúc JSON response theo Clean Code."""
+def api_response(success: bool = True, data=None, message: str = "", status_code: int = 200, meta=None):
+    """Chuẩn hóa cấu trúc JSON response theo Clean Code, hỗ trợ metadata (phân trang, online info...)."""
     response_body = {
         "success": success,
         "message": message,
         "data": data
     }
+    if meta is not None:
+        response_body["meta"] = meta
     return jsonify(response_body), status_code
 
 def admin_required():

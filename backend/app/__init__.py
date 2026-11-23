@@ -1,5 +1,6 @@
 import os
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from app.config import Config
 from app.extensions import db, jwt, limiter, cors, socketio
 
@@ -7,6 +8,9 @@ def create_app(config_class=Config):
     """Application Factory Pattern khởi tạo Flask App."""
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Đảm bảo nhận diện đúng IP client đằng sau Reverse Proxy / Cloudflare / Nginx
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     # Đảm bảo thư mục uploads tồn tại
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -93,13 +97,32 @@ def create_app(config_class=Config):
     def ratelimit_handler(e):
         desc = getattr(e, 'description', '')
         g.error_detail = f"Rate limit exceeded: {desc}"
-        return jsonify({
+        
+        # Ghi log audit an toàn nếu bị spam tần suất cao
+        try:
+            from app.services.audit_service import AuditService
+            AuditService.log(
+                action="Rate limit exceeded",
+                feature="Bảo mật / Chống DDoS",
+                status="failed",
+                failure_reason=desc or "Vượt quá ngưỡng request cho phép",
+                req=None
+            )
+        except Exception:
+            pass
+
+        response = jsonify({
             "success": False, 
             "message": "Too many requests. Please try again in a few minutes.",
             "message_en": f"Rate limit exceeded: {desc}. Please try again later.",
             "message_vi": "Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng thử lại sau ít phút.",
             "error": "rate_limit_exceeded"
-        }), 429
+        })
+        response.status_code = 429
+        # Bổ sung Retry-After header (mặc định 60s hoặc theo window của limiter)
+        retry_after = getattr(e, 'retry_after', 60)
+        response.headers['Retry-After'] = str(retry_after)
+        return response
 
     @app.errorhandler(500)
     def internal_error(error):

@@ -6,12 +6,14 @@ import {
 } from 'lucide-react';
 import userService from '../../../services/userService';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function AuditLogsTab() {
   const { lang } = useApp();
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -22,12 +24,12 @@ export default function AuditLogsTab() {
   const [copiedIp, setCopiedIp] = useState('');
   const [lastUpdated, setLastUpdated] = useState('');
 
-  const fetchLogs = async (currentPage = 1) => {
+  const fetchLogs = async (currentPage = 1, currentLimit = pageSize) => {
     try {
       setLoading(true);
       const res = await userService.getAuditLogs({
         page: currentPage,
-        per_page: 20,
+        per_page: currentLimit,
         feature: featureFilter,
         status: statusFilter,
         q: search
@@ -49,8 +51,8 @@ export default function AuditLogsTab() {
   };
 
   useEffect(() => {
-    fetchLogs(page);
-  }, [page, featureFilter, statusFilter]);
+    fetchLogs(page, pageSize);
+  }, [page, pageSize, featureFilter, statusFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -293,29 +295,19 @@ export default function AuditLogsTab() {
         </div>
 
         {/* Pagination Bar */}
-        {totalPages > 1 && (
-          <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
-            <span>Trang {page} / {totalPages} (Tổng {total} bản ghi)</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={page >= totalPages || loading}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <PaginationControl
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={total}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[10, 20, 50, 100]}
+          itemLabel="nhật ký"
+          itemLabelEn="logs"
+        />
       </div>
     </div>
   );

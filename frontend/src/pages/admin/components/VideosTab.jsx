@@ -7,6 +7,7 @@ import { YoutubeIcon } from '../../../components/SocialIcons';
 import contentService from '../../../services/contentService';
 import { mediaService } from '../../../services/mediaService';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function VideosTab({ videos = [], seriesList = [], posts = [], onRefresh }) {
   const { lang, t } = useApp();
@@ -17,6 +18,10 @@ export default function VideosTab({ videos = [], seriesList = [], posts = [], on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingThumb, setIsUploadingThumb] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Form State
   const initialForm = {
@@ -183,6 +188,17 @@ export default function VideosTab({ videos = [], seriesList = [], posts = [], on
     return matchSearch && matchStatus;
   });
 
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedVideos = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredVideos.slice(start, start + pageSize);
+  }, [filteredVideos, currentPage, pageSize]);
+
   const ytId = extractYouTubeId(form.video_url);
 
   return (
@@ -253,7 +269,7 @@ export default function VideosTab({ videos = [], seriesList = [], posts = [], on
             <p className="text-xs">{lang === 'vi' ? 'Không tìm thấy video nào.' : 'No videos found.'}</p>
           </div>
         ) : (
-          filteredVideos.map((v) => {
+          paginatedVideos.map((v) => {
             const sInfo = seriesList.find((s) => s.id === v.series_id);
             return (
               <div
@@ -345,6 +361,17 @@ export default function VideosTab({ videos = [], seriesList = [], posts = [], on
             );
           })
         )}
+
+        {/* Thanh Điều Hướng Phân Trang */}
+        <PaginationControl
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filteredVideos.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="video"
+          itemLabelEn="videos"
+        />
       </div>
 
       {/* POPUP MODAL TẠO / SỬA VIDEO */}

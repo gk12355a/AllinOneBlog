@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Upload, Trash2, Search, X, Eye, Image as ImageIcon, Copy, Check, ExternalLink } from 'lucide-react';
 import { mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function MediaTab({ mediaList = [], onMediaUpdated }) {
   const { t } = useApp();
@@ -10,6 +11,10 @@ export default function MediaTab({ mediaList = [], onMediaUpdated }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [previewMedia, setPreviewMedia] = useState(null);
   const [copiedUrl, setCopiedUrl] = useState(null);
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const handleUploadMedia = async (e) => {
     e.preventDefault();
@@ -56,6 +61,17 @@ export default function MediaTab({ mediaList = [], onMediaUpdated }) {
     const q = searchTerm.toLowerCase();
     return mediaList.filter((m) => m.filename?.toLowerCase().includes(q));
   }, [mediaList, searchTerm]);
+
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedMedia = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredMedia.slice(start, start + pageSize);
+  }, [filteredMedia, currentPage, pageSize]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -122,53 +138,68 @@ export default function MediaTab({ mediaList = [], onMediaUpdated }) {
           <p className="text-xs font-medium">Không tìm thấy hình ảnh nào phù hợp.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filteredMedia.map((m) => {
-            const displayUrl = m.watermark_url || m.file_url || m.url;
-            return (
-              <div
-                key={m.id}
-                onClick={() => setPreviewMedia(m)}
-                className="group relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-indigo-500/50 cursor-pointer transition flex flex-col"
-              >
-                <div className="relative w-full h-36 bg-zinc-100 dark:bg-zinc-950 overflow-hidden">
-                  <img
-                    src={displayUrl}
-                    alt={m.filename}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => handleCopyUrl(displayUrl, e)}
-                      title="Copy URL ảnh"
-                      className="p-1.5 rounded-lg bg-white/90 text-zinc-800 hover:bg-white shadow transition"
-                    >
-                      {copiedUrl === displayUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteMedia(m.id, e)}
-                      className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow transition"
-                      title="Xóa ảnh"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {paginatedMedia.map((m) => {
+              const displayUrl = m.watermark_url || m.file_url || m.url;
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => setPreviewMedia(m)}
+                  className="group relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs hover:shadow-md hover:border-indigo-500/50 cursor-pointer transition flex flex-col"
+                >
+                  <div className="relative w-full h-36 bg-zinc-100 dark:bg-zinc-950 overflow-hidden">
+                    <img
+                      src={displayUrl}
+                      alt={m.filename}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyUrl(displayUrl, e)}
+                        title="Copy URL ảnh"
+                        className="p-1.5 rounded-lg bg-white/90 text-zinc-800 hover:bg-white shadow transition"
+                      >
+                        {copiedUrl === displayUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteMedia(m.id, e)}
+                        className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow transition"
+                        title="Xóa ảnh"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="p-3">
-                  <p className="text-xs font-semibold truncate text-zinc-800 dark:text-zinc-200" title={m.filename}>
-                    {m.filename}
-                  </p>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400 mt-1">
-                    <span>{m.file_size ? `${(m.file_size / 1024).toFixed(1)} KB` : 'Ảnh'}</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">Bấm xem</span>
+                  <div className="p-3">
+                    <p className="text-xs font-semibold truncate text-zinc-800 dark:text-zinc-200" title={m.filename}>
+                      {m.filename}
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 mt-1">
+                      <span>{m.file_size ? `${(m.file_size / 1024).toFixed(1)} KB` : 'Ảnh'}</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">Bấm xem</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/* Thanh Điều Hướng Phân Trang */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
+            <PaginationControl
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={filteredMedia.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="hình ảnh"
+              itemLabelEn="images"
+            />
+          </div>
         </div>
       )}
 

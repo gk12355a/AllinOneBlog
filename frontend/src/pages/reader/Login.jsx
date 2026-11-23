@@ -1,11 +1,11 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogIn, UserPlus, Lock, Mail, User, AlertCircle } from 'lucide-react';
+import { LogIn, UserPlus, Lock, Mail, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../../services/api';
 import { useApp } from '../../contexts/AppContext';
 
 export default function Login() {
-  const { loginUser, t } = useApp();
+  const { loginUser, t, lang } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -15,6 +15,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -68,11 +69,13 @@ export default function Login() {
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mx-auto mb-3">
             {isRegister ? <UserPlus className="w-6 h-6" /> : <LogIn className="w-6 h-6" />}
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            {isRegister ? t('register') : t('login')}
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 capitalize">
+            {isRegister ? (lang === 'vi' ? 'Đăng ký' : 'Sign Up') : (lang === 'vi' ? 'Đăng nhập' : 'Sign In')}
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            {isRegister ? 'Join our dev community' : 'Sign in to access your library & admin features'}
+            {isRegister 
+              ? (lang === 'vi' ? 'Gia nhập cộng đồng lập trình & công nghệ' : 'Join our dev community') 
+              : (lang === 'vi' ? 'Đăng nhập để xem thư viện cá nhân & quản trị' : 'Sign in to access your library & admin features')}
           </p>
         </div>
 
@@ -84,29 +87,9 @@ export default function Login() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Quick Demo Credentials Autofill */}
-          {!isRegister && (
-            <div className="flex gap-2 p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500">
-              <span className="font-semibold text-zinc-600 dark:text-zinc-400 self-center">Điền nhanh:</span>
-              <button
-                type="button"
-                onClick={() => { setUsername('demouser'); setPassword('User@123456'); setError(''); }}
-                className="px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition"
-              >
-                Độc giả (demouser)
-              </button>
-              <button
-                type="button"
-                onClick={() => { setUsername('admin'); setPassword('Admin@123456'); setError(''); }}
-                className="px-2.5 py-1 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-medium hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
-              >
-                Admin
-              </button>
-            </div>
-          )}
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-              Username
+              {lang === 'vi' ? 'Tên đăng nhập hoặc Email' : 'Username or Email'}
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
@@ -115,8 +98,8 @@ export default function Login() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. johndoe"
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder={lang === 'vi' ? 'Nhập username hoặc email...' : 'e.g. johndoe'}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -134,7 +117,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -142,51 +125,59 @@ export default function Login() {
 
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-              Password
+              {lang === 'vi' ? 'Mật khẩu' : 'Password'}
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-9 pr-10 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
+                title={showPassword ? (lang === 'vi' ? 'Ẩn mật khẩu' : 'Hide password') : (lang === 'vi' ? 'Hiện mật khẩu' : 'Show password')}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50 mt-2"
+            className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50 mt-2 shadow-xs"
           >
-            {loading ? t('loading') : (isRegister ? t('register') : t('login'))}
+            {loading ? (lang === 'vi' ? 'Đang xử lý...' : t('loading')) : (isRegister ? (lang === 'vi' ? 'Đăng ký tài khoản' : t('register')) : (lang === 'vi' ? 'Đăng nhập' : t('login')))}
           </button>
         </form>
 
         <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800/80 text-center text-xs text-zinc-500">
           {isRegister ? (
             <p>
-              Already have an account?{' '}
+              {lang === 'vi' ? 'Đã có tài khoản? ' : 'Already have an account? '}
               <button
                 type="button"
                 onClick={() => { setIsRegister(false); setError(''); }}
                 className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
               >
-                Sign in
+                {lang === 'vi' ? 'Đăng nhập ngay' : 'Sign in'}
               </button>
             </p>
           ) : (
             <p>
-              Don't have an account?{' '}
+              {lang === 'vi' ? 'Chưa có tài khoản? ' : "Don't have an account? "}
               <button
                 type="button"
                 onClick={() => { setIsRegister(true); setError(''); }}
                 className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
               >
-                Sign up
+                {lang === 'vi' ? 'Đăng ký tài khoản' : 'Sign up'}
               </button>
             </p>
           )}

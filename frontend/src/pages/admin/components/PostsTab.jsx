@@ -7,6 +7,7 @@ import {
 import { postApi, mediaApi, seriesApi } from '../../../services/api';
 import userService from '../../../services/userService';
 import { useApp } from '../../../contexts/AppContext';
+import PaginationControl from './PaginationControl';
 
 export default function PostsTab({ posts = [], onPostsUpdated }) {
   const { t } = useApp();
@@ -16,6 +17,10 @@ export default function PostsTab({ posts = [], onPostsUpdated }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [visibilityFilter, setVisibilityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Phân trang & Tùy chọn số lượng dòng (pageSize)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,6 +80,17 @@ export default function PostsTab({ posts = [], onPostsUpdated }) {
       return matchSearch && matchVisibility && matchStatus;
     });
   }, [posts, searchTerm, visibilityFilter, statusFilter]);
+
+  // Reset trang 1 khi lọc hoặc đổi pageSize
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, visibilityFilter, statusFilter, pageSize]);
+
+  // Dữ liệu phân trang
+  const paginatedPosts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPosts.slice(start, start + pageSize);
+  }, [filteredPosts, currentPage, pageSize]);
 
   const handleOpenCreateModal = () => {
     setEditingPostId(null);
@@ -313,7 +329,7 @@ export default function PostsTab({ posts = [], onPostsUpdated }) {
             <p className="text-sm font-medium">Không tìm thấy bài viết nào phù hợp.</p>
           </div>
         ) : (
-          filteredPosts.map((post) => {
+          paginatedPosts.map((post) => {
             const seriesInfo = seriesList.find((s) => s.id === post.series_id);
             return (
               <div
@@ -425,6 +441,17 @@ export default function PostsTab({ posts = [], onPostsUpdated }) {
             );
           })
         )}
+
+        {/* Thanh Điều Hướng Phân Trang */}
+        <PaginationControl
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={filteredPosts.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="bài viết"
+          itemLabelEn="posts"
+        />
       </div>
 
       {/* POPUP MODAL FOR CREATE / EDIT POST */}
