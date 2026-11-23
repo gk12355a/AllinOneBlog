@@ -205,10 +205,102 @@ erDiagram
 
     MESSAGES {
         int id PK
+        int user_id FK "nullable"
         string name
         string email
         string subject
         text message
+        string status "new | replied | closed | spam"
+        string category
+        boolean is_read
+        boolean is_starred
+        boolean is_closed
+        string ip_address
+        string device_type
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+
+    MESSAGE_REPLIES {
+        int id PK
+        int message_id FK
+        int sender_id FK "nullable"
+        string sender_type "user | admin"
+        text reply_content
+        text attachments_json
+        boolean is_internal
+        datetime sent_at
+    }
+
+    COMMENTS {
+        int id PK
+        int post_id FK
+        int user_id FK
+        int parent_id FK "nullable (nested replies)"
+        text content
+        string image_url
+        datetime created_at
+        datetime updated_at
+    }
+
+    CERTIFICATES {
+        int id PK
+        string title
+        string issuer
+        string issue_date
+        string credential_id
+        string credential_url
+        string image_url
+        int sort_order
+        datetime created_at
+    }
+
+    AUDIT_LOGS {
+        int id PK
+        int user_id FK "nullable"
+        string username
+        string action
+        string feature
+        string status "success | failed"
+        string ip_address
+        string user_agent
+        string target_type
+        string target_id
+        string target_name
+        text details_json
+        string failure_reason
+        datetime created_at
+    }
+
+    SERIES_ITEMS {
+        int id PK
+        int series_id FK
+        int item_id
+        string item_type "post | video"
+        int order_index
+        datetime created_at
+    }
+
+    SERIES_PROGRESS {
+        int id PK
+        int user_id FK
+        int series_id FK
+        int item_id
+        string item_type
+        string status
+        int percent
+        datetime completed_at
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK "nullable"
+        string title
+        text message
+        string type "contact | post | security | system"
+        string dedupe_key
+        string link
         boolean is_read
         datetime created_at
     }
@@ -227,9 +319,15 @@ erDiagram
     USERS ||--o{ READING_HISTORY : has
     USERS ||--o{ LIKED_POSTS : has
     USERS ||--o{ SAVED_POSTS : has
+    USERS ||--o{ COMMENTS : writes
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ SERIES_PROGRESS : tracks
     POSTS ||--o{ READING_HISTORY : in
     POSTS ||--o{ LIKED_POSTS : in
     POSTS ||--o{ SAVED_POSTS : in
+    POSTS ||--o{ COMMENTS : receives
+    MESSAGES ||--o{ MESSAGE_REPLIES : contains
+    SERIES ||--o{ SERIES_ITEMS : has
     SERIES ||--o{ POSTS : contains
     SERIES ||--o{ VIDEOS : contains
     ALBUMS ||--o{ ALBUM_PHOTOS : contains
@@ -411,11 +509,35 @@ erDiagram
 - `PUT /api/videos/:id`: Sửa video (Admin Only).
 - `DELETE /api/videos/:id`: Xóa video (Admin Only).
 
-### 5.10 Contact Messages
-- `POST /api/contact`: Gửi tin nhắn liên hệ (Public có rate limit).
-- `GET /api/admin/messages`: Xem danh sách tin nhắn (Admin Only).
-- `PUT /api/admin/messages/:id/read`: Đánh dấu tin nhắn đã đọc (Admin Only).
+### 5.10 Contact Messages & Realtime Inbox
+- `POST /api/contact`: Gửi tin nhắn liên hệ (User đã đăng nhập, Rate limited, Honeypot & Anti-bot timer).
+- `GET /api/admin/messages`: Xem danh sách hội thoại có lọc status, category, star, sla và phân trang (Admin Only).
+- `PUT /api/admin/messages/:id/status`: Đổi trạng thái tin nhắn (Admin Only).
+- `PUT /api/admin/messages/:id/star`: Ghim tin nhắn quan trọng (Admin Only).
+- `PUT /api/admin/messages/:id/close`: Đóng hoặc mở lại hội thoại (Admin Only).
+- `POST /api/admin/messages/:id/reply`: Phản hồi người dùng hoặc lưu ghi chú nội bộ (Admin Only).
 - `DELETE /api/admin/messages/:id`: Xóa tin nhắn (Admin Only).
+- `GET /api/user/messages`: Độc giả xem danh sách hội thoại cá nhân của mình.
+- `POST /api/user/messages/:id/reply`: Độc giả phản hồi tiếp vào cuộc hội thoại.
+
+### 5.11 Admin Users & Security
+- `GET /api/admin/users`: Lấy danh sách thành viên kèm trạng thái trực tuyến (Realtime Online Status) và bộ lọc vai trò/trạng thái.
+- `PUT /api/admin/users/:id/status`: Khóa hoặc mở khóa tài khoản thành viên.
+- `PUT /api/admin/users/:id/role`: Nâng quyền Admin hoặc hạ quyền User.
+- `POST /api/admin/users/:id/reset-password`: Đặt lại mật khẩu mới, thu hồi mọi phiên đăng nhập cũ (`token_version`).
+- `GET /api/admin/audit-logs`: Truy xuất nhật ký hoạt động hệ thống.
+- `GET /api/admin/audit-logs/stats`: Thống kê nhật ký an ninh trong 24 giờ qua.
+
+### 5.12 Notifications System
+- `GET /api/notifications`: Danh sách thông báo cá nhân và số lượng chưa đọc.
+- `PUT /api/notifications/:id/read`: Đánh dấu thông báo đã đọc.
+- `PUT /api/notifications/read-all`: Đánh dấu đã đọc toàn bộ thông báo.
+- `DELETE /api/notifications/:id`: Xóa thông báo.
+
+### 5.13 Secret 28-Day Cycle Tracker
+- `POST /api/admin/cycle/verify`: Xác thực mã PIN để mở khóa tab riêng tư.
+- `GET /api/admin/cycle`: Lấy thông tin nhịp sinh học chu kỳ 28 ngày.
+- `PUT /api/admin/cycle`: Cập nhật ngày bắt đầu kỳ kinh, độ dài chu kỳ, biệt danh và đổi mã PIN.
 
 ---
 
