@@ -42,9 +42,9 @@ def create_app(config_class=Config):
     from app.routes.series import series_bp
     from app.routes.media import media_bp
     from app.routes.content import content_bp
-    from app.routes.system import system_bp
     from app.routes.admin_users import admin_users_bp
     from app.routes.notifications import notifications_bp
+    from app.routes.system import system_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(profile_bp, url_prefix="/api")
@@ -56,6 +56,37 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_users_bp, url_prefix="/api")
     app.register_blueprint(notifications_bp, url_prefix="/api")
     app.register_blueprint(system_bp, url_prefix="")
+
+    # Tự động tạo bảng & tài khoản admin/demo mặc định nếu database trống (cho deploy Render)
+    with app.app_context():
+        try:
+            db.create_all()
+            from app.models import User
+            admin_user = User.query.filter_by(username="admin").first()
+            if not admin_user:
+                admin_user = User(
+                    username="admin",
+                    email="admin@allinoneblog.dev",
+                    role="admin"
+                )
+                admin_user.set_password("Admin@123456")
+                db.session.add(admin_user)
+                db.session.commit()
+                app.logger.info("Auto-seeded default admin: admin / Admin@123456")
+
+            demo_u = User.query.filter_by(username="demouser").first()
+            if not demo_u:
+                demo_u = User(
+                    username="demouser",
+                    email="user@allinoneblog.dev",
+                    role="user"
+                )
+                demo_u.set_password("User@123456")
+                db.session.add(demo_u)
+                db.session.commit()
+                app.logger.info("Auto-seeded default demo user: demouser / User@123456")
+        except Exception as e:
+            app.logger.error(f"Error ensuring initial database tables: {e}")
 
     # Đăng ký SocketIO event handlers & Realtime Service
     from app.services import realtime_service
