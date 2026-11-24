@@ -4,9 +4,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 from app.utils.helpers import format_datetime_utc7
 
+
 class User(db.Model):
     __tablename__ = "users"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
@@ -34,9 +35,15 @@ class User(db.Model):
     last_login_ip = db.Column(db.String(45), default="")
     token_version = db.Column(db.Integer, default=1, nullable=False)
 
-    history = db.relationship("ReadingHistory", backref="user", cascade="all, delete-orphan", lazy="dynamic")
-    likes = db.relationship("LikedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic")
-    bookmarks = db.relationship("SavedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic")
+    history = db.relationship(
+        "ReadingHistory", backref="user", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    likes = db.relationship(
+        "LikedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    bookmarks = db.relationship(
+        "SavedPost", backref="user", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -79,15 +86,18 @@ class User(db.Model):
             "last_login_at": format_datetime_utc7(self.last_login_at),
             "last_login_ip": self.last_login_ip or "",
             "settings": settings,
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class Profile(db.Model):
     __tablename__ = "profile"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(120), default="Kiên Nguyễn")
-    headline = db.Column(db.String(255), default="Full-stack Developer & Tech Enthusiast")
+    full_name = db.Column(db.String(120), default="Kiên Đỗ")
+    headline = db.Column(
+        db.String(255), default="Full-stack Developer & Tech Enthusiast"
+    )
     bio = db.Column(db.Text, default="")
     avatar_url = db.Column(db.String(255), default="")
     resume_url = db.Column(db.String(255), default="")
@@ -95,7 +105,9 @@ class Profile(db.Model):
     social_links_json = db.Column(db.Text, default="{}")
     skills_json = db.Column(db.Text, default="[]")
     timeline_json = db.Column(db.Text, default="[]")
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def to_dict(self):
         return {
@@ -109,26 +121,41 @@ class Profile(db.Model):
             "social_links": json.loads(self.social_links_json or "{}"),
             "skills": json.loads(self.skills_json or "[]"),
             "timeline": json.loads(self.timeline_json or "[]"),
-            "updated_at": format_datetime_utc7(self.updated_at)
+            "updated_at": format_datetime_utc7(self.updated_at),
         }
+
 
 class Series(db.Model):
     __tablename__ = "series"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     slug = db.Column(db.String(200), unique=True, nullable=False, index=True)
     description = db.Column(db.Text, default="")
     cover_image = db.Column(db.String(255), default="")
-    level = db.Column(db.String(50), default="beginner")  # "beginner" | "intermediate" | "advanced"
-    status = db.Column(db.String(50), default="updating")  # "updating" | "completed" | "upcoming"
-    is_published = db.Column(db.Boolean, default=True)  # Hiển thị hoặc ẩn series với độc giả
-    upcoming_lessons = db.Column(db.Text, default="[]")  # JSON string danh sách bài học dự kiến sắp ra mắt
+    level = db.Column(
+        db.String(50), default="beginner"
+    )  # "beginner" | "intermediate" | "advanced"
+    status = db.Column(
+        db.String(50), default="updating"
+    )  # "updating" | "completed" | "upcoming"
+    is_published = db.Column(
+        db.Boolean, default=True
+    )  # Hiển thị hoặc ẩn series với độc giả
+    upcoming_lessons = db.Column(
+        db.Text, default="[]"
+    )  # JSON string danh sách bài học dự kiến sắp ra mắt
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     posts = db.relationship("Post", backref="series", lazy="dynamic")
     videos = db.relationship("Video", backref="series", lazy="dynamic")
-    items = db.relationship("SeriesItem", backref="series", cascade="all, delete-orphan", lazy="dynamic", order_by="SeriesItem.position.asc()")
+    items = db.relationship(
+        "SeriesItem",
+        backref="series",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+        order_by="SeriesItem.position.asc()",
+    )
 
     def to_dict(self, include_items: bool = False, current_user=None):
         import json
@@ -141,7 +168,7 @@ class Series(db.Model):
         # Stealth Mode: Lọc bỏ các bài viết mà current_user không có quyền xem
         filtered_items = []
         for it in all_items:
-            if it.item_type == 'post' and it.post:
+            if it.item_type == "post" and it.post:
                 if check_single_post_access(it.post, current_user):
                     filtered_items.append(it)
             else:
@@ -159,7 +186,7 @@ class Series(db.Model):
             item_data = it.to_dict()
             item_data["position"] = idx
 
-            if it.item_type == 'post' and it.post:
+            if it.item_type == "post" and it.post:
                 post_count += 1
                 word_count = len(it.post.content.split()) if it.post.content else 0
                 read_time = max(1, round(word_count / 200))
@@ -168,7 +195,7 @@ class Series(db.Model):
                     for t in it.post.tags.split(","):
                         if t.strip():
                             all_tags.add(t.strip().lower())
-            elif it.item_type == 'video' and it.video:
+            elif it.item_type == "video" and it.video:
                 video_count += 1
                 dur_str = it.video.duration or "10:00"
                 try:
@@ -177,7 +204,7 @@ class Series(db.Model):
                 except Exception:
                     mins = 5
                 total_minutes += mins
-            elif it.item_type == 'placeholder':
+            elif it.item_type == "placeholder":
                 placeholder_count += 1
 
             if include_items:
@@ -185,9 +212,20 @@ class Series(db.Model):
 
         # Fallback tính theo posts nếu items rỗng
         if not all_items:
-            published_posts = [p for p in self.posts.filter_by(status="published").order_by(Post.order_index.asc()).all() if check_single_post_access(p, current_user)]
+            published_posts = [
+                p
+                for p in self.posts.filter_by(status="published")
+                .order_by(Post.order_index.asc())
+                .all()
+                if check_single_post_access(p, current_user)
+            ]
             post_count = len(published_posts)
-            total_minutes = sum([max(1, round((len(p.content.split()) if p.content else 0) / 200)) for p in published_posts])
+            total_minutes = sum(
+                [
+                    max(1, round((len(p.content.split()) if p.content else 0) / 200))
+                    for p in published_posts
+                ]
+            )
 
         res = {
             "id": self.id,
@@ -197,7 +235,9 @@ class Series(db.Model):
             "cover_image": self.cover_image,
             "level": self.level or "beginner",
             "status": self.status or "updating",
-            "is_published": self.is_published if self.is_published is not None else True,
+            "is_published": self.is_published
+            if self.is_published is not None
+            else True,
             "total_items": len(filtered_items),
             "total_posts": post_count,
             "total_videos": video_count,
@@ -205,18 +245,27 @@ class Series(db.Model):
             "total_duration_minutes": total_minutes,
             "tags": sorted(list(all_tags)),
             "updated_at": format_datetime_utc7(self.created_at),
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
         if include_items:
             res["items"] = items_payload
-            res["posts"] = [it.post.to_dict(include_content=False) for it in filtered_items if it.item_type == 'post' and it.post]
-            res["videos"] = [it.video.to_dict() for it in filtered_items if it.item_type == 'video' and it.video]
+            res["posts"] = [
+                it.post.to_dict(include_content=False)
+                for it in filtered_items
+                if it.item_type == "post" and it.post
+            ]
+            res["videos"] = [
+                it.video.to_dict()
+                for it in filtered_items
+                if it.item_type == "video" and it.video
+            ]
 
         return res
 
+
 class Post(db.Model):
     __tablename__ = "posts"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=True)
@@ -226,28 +275,50 @@ class Post(db.Model):
     slug = db.Column(db.String(255), unique=True, nullable=False, index=True)
     excerpt = db.Column(db.Text, default="")
     content = db.Column(db.Text, nullable=False)
-    content_type = db.Column(db.String(20), default="markdown")  # "markdown" | "richtext"
+    content_type = db.Column(
+        db.String(20), default="markdown"
+    )  # "markdown" | "richtext"
     cover_image = db.Column(db.String(255), default="")
-    status = db.Column(db.String(20), default="draft", index=True)  # "draft" | "published"
-    visibility = db.Column(db.String(20), default="public", index=True)  # "public" | "logged_in" | "role" | "custom" | "unlisted"
+    status = db.Column(
+        db.String(20), default="draft", index=True
+    )  # "draft" | "published"
+    visibility = db.Column(
+        db.String(20), default="public", index=True
+    )  # "public" | "logged_in" | "role" | "custom" | "unlisted"
     tags = db.Column(db.String(255), default="")  # Phân tách bởi dấu phẩy
     views = db.Column(db.Integer, default=0)
-    reactions_json = db.Column(db.Text, default='{"fire": 0, "heart": 0, "idea": 0, "rocket": 0}')
+    reactions_json = db.Column(
+        db.Text, default='{"fire": 0, "heart": 0, "idea": 0, "rocket": 0}'
+    )
     published_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
-    author = db.relationship("User", foreign_keys=[author_id], backref=db.backref("authored_posts", lazy="dynamic"))
-    access_users = db.relationship("PostAccessUser", backref="post", cascade="all, delete-orphan", lazy="dynamic")
-    access_roles = db.relationship("PostAccessRole", backref="post", cascade="all, delete-orphan", lazy="dynamic")
-    excluded_users = db.relationship("PostExcludedUser", backref="post", cascade="all, delete-orphan", lazy="dynamic")
+    author = db.relationship(
+        "User",
+        foreign_keys=[author_id],
+        backref=db.backref("authored_posts", lazy="dynamic"),
+    )
+    access_users = db.relationship(
+        "PostAccessUser", backref="post", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    access_roles = db.relationship(
+        "PostAccessRole", backref="post", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    excluded_users = db.relationship(
+        "PostExcludedUser", backref="post", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def to_dict(self, include_content: bool = True, include_access: bool = False):
-        tags_list = [t.strip() for t in self.tags.split(",") if t.strip()] if self.tags else []
+        tags_list = (
+            [t.strip() for t in self.tags.split(",") if t.strip()] if self.tags else []
+        )
         word_count = len(self.content.split()) if self.content else 0
         reading_time = max(1, round(word_count / 200))
-        
+
         data = {
             "id": self.id,
             "author_id": self.author_id,
@@ -255,15 +326,19 @@ class Post(db.Model):
                 "id": self.author.id,
                 "username": self.author.username,
                 "display_name": self.author.display_name,
-                "avatar_url": self.author.avatar_url
-            } if self.author else None,
+                "avatar_url": self.author.avatar_url,
+            }
+            if self.author
+            else None,
             "series_id": self.series_id,
             "series": {
                 "id": self.series.id,
                 "title": self.series.title,
                 "slug": self.series.slug,
-                "total_posts": self.series.posts.filter_by(status="published").count()
-            } if self.series else None,
+                "total_posts": self.series.posts.filter_by(status="published").count(),
+            }
+            if self.series
+            else None,
             "order_index": self.order_index,
             "lang": self.lang,
             "language": self.lang,
@@ -277,11 +352,13 @@ class Post(db.Model):
             "visibility": self.visibility or "public",
             "tags": tags_list,
             "views": self.views,
-            "reactions": json.loads(self.reactions_json or '{"fire": 0, "heart": 0, "idea": 0, "rocket": 0}'),
+            "reactions": json.loads(
+                self.reactions_json or '{"fire": 0, "heart": 0, "idea": 0, "rocket": 0}'
+            ),
             "reading_time": reading_time,
             "published_at": format_datetime_utc7(self.published_at),
             "created_at": format_datetime_utc7(self.created_at),
-            "updated_at": format_datetime_utc7(self.updated_at)
+            "updated_at": format_datetime_utc7(self.updated_at),
         }
         if include_content:
             data["content"] = self.content
@@ -292,7 +369,7 @@ class Post(db.Model):
                     "user_id": u.user_id,
                     "username": u.user.username if u.user else None,
                     "display_name": u.user.display_name if u.user else None,
-                    "avatar_url": u.user.avatar_url if u.user else None
+                    "avatar_url": u.user.avatar_url if u.user else None,
                 }
                 for u in self.access_users.all()
             ]
@@ -302,19 +379,30 @@ class Post(db.Model):
                     "user_id": u.user_id,
                     "username": u.user.username if u.user else None,
                     "display_name": u.user.display_name if u.user else None,
-                    "avatar_url": u.user.avatar_url if u.user else None
+                    "avatar_url": u.user.avatar_url if u.user else None,
                 }
                 for u in self.excluded_users.all()
             ]
 
         return data
 
+
 class PostAccessUser(db.Model):
     __tablename__ = "post_access_users"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id = db.Column(
+        db.Integer,
+        db.ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     granted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -322,34 +410,54 @@ class PostAccessUser(db.Model):
     user = db.relationship("User", foreign_keys=[user_id])
     granter = db.relationship("User", foreign_keys=[granted_by])
 
+
 class PostAccessRole(db.Model):
     __tablename__ = "post_access_roles"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id = db.Column(
+        db.Integer,
+        db.ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     role = db.Column(db.String(50), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class PostExcludedUser(db.Model):
     __tablename__ = "post_excluded_users"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id = db.Column(
+        db.Integer,
+        db.ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", foreign_keys=[user_id])
 
+
 class Video(db.Model):
     __tablename__ = "videos"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     slug = db.Column(db.String(255), unique=True, index=True, nullable=True)
     series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=True)
     order_index = db.Column(db.Integer, default=0)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, default="")
-    platform = db.Column(db.String(50), default="youtube")  # "youtube" | "vimeo" | "custom"
+    platform = db.Column(
+        db.String(50), default="youtube"
+    )  # "youtube" | "vimeo" | "custom"
     video_url = db.Column(db.String(500), nullable=False)
     thumbnail_url = db.Column(db.String(500), default="")
     duration = db.Column(db.String(20), default="")  # e.g. "12:45"
@@ -365,6 +473,7 @@ class Video(db.Model):
 
     def to_dict(self):
         import json
+
         try:
             chapters = json.loads(self.chapters_json or "[]")
         except Exception:
@@ -389,12 +498,13 @@ class Video(db.Model):
             "related_post_id": self.related_post_id,
             "category": self.category,
             "sort_order": self.sort_order,
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class Project(db.Model):
     __tablename__ = "projects"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, default="")
@@ -407,7 +517,9 @@ class Project(db.Model):
     is_featured = db.Column(db.Boolean, default=False, index=True)
     sort_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def to_dict(self, is_admin: bool = False):
         # DevTools & security protection: do not leak raw links if author has disabled visibility
@@ -423,20 +535,25 @@ class Project(db.Model):
             "github_link": github,
             "show_demo": self.show_demo if self.show_demo is not None else True,
             "show_github": self.show_github if self.show_github is not None else True,
-            "tech_stack": [t.strip() for t in self.tech_stack.split(",") if t.strip()] if self.tech_stack else [],
+            "tech_stack": [t.strip() for t in self.tech_stack.split(",") if t.strip()]
+            if self.tech_stack
+            else [],
             "is_featured": self.is_featured,
             "sort_order": self.sort_order,
             "created_at": format_datetime_utc7(self.created_at),
-            "updated_at": format_datetime_utc7(self.updated_at)
+            "updated_at": format_datetime_utc7(self.updated_at),
         }
         return data
+
 
 class Certificate(db.Model):
     __tablename__ = "certificates"
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
-    issuer = db.Column(db.String(255), nullable=False)  # Ví dụ: Cloud Native Computing Foundation / Linux Foundation
+    issuer = db.Column(
+        db.String(255), nullable=False
+    )  # Ví dụ: Cloud Native Computing Foundation / Linux Foundation
     issue_date = db.Column(db.String(100), default="")
     credential_id = db.Column(db.String(150), default="")
     credential_url = db.Column(db.String(500), default="")
@@ -458,14 +575,17 @@ class Certificate(db.Model):
             "image_url": self.image_url,
             "pdf_url": self.pdf_url,
             "description": self.description,
-            "skills": [s.strip() for s in self.skills.split(",") if s.strip()] if self.skills else [],
+            "skills": [s.strip() for s in self.skills.split(",") if s.strip()]
+            if self.skills
+            else [],
             "sort_order": self.sort_order,
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class Album(db.Model):
     __tablename__ = "albums"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     slug = db.Column(db.String(200), unique=True, nullable=False, index=True)
@@ -474,7 +594,9 @@ class Album(db.Model):
     event_date = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    photos = db.relationship("AlbumPhoto", backref="album", cascade="all, delete-orphan", lazy="dynamic")
+    photos = db.relationship(
+        "AlbumPhoto", backref="album", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def to_dict(self, include_photos: bool = False):
         res = {
@@ -486,15 +608,21 @@ class Album(db.Model):
             "photo_count": self.photos.count(),
             "event_date": format_datetime_utc7(self.event_date),
             "created_at": format_datetime_utc7(self.created_at),
-            "preview_photos": [p.photo_url for p in self.photos.order_by(AlbumPhoto.sort_order.asc()).limit(4)]
+            "preview_photos": [
+                p.photo_url
+                for p in self.photos.order_by(AlbumPhoto.sort_order.asc()).limit(4)
+            ],
         }
         if include_photos:
-            res["photos"] = [p.to_dict() for p in self.photos.order_by(AlbumPhoto.sort_order.asc())]
+            res["photos"] = [
+                p.to_dict() for p in self.photos.order_by(AlbumPhoto.sort_order.asc())
+            ]
         return res
+
 
 class AlbumPhoto(db.Model):
     __tablename__ = "album_photos"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     album_id = db.Column(db.Integer, db.ForeignKey("albums.id"), nullable=False)
     photo_url = db.Column(db.String(500), nullable=False)
@@ -509,12 +637,13 @@ class AlbumPhoto(db.Model):
             "photo_url": self.photo_url,
             "caption": self.caption,
             "sort_order": self.sort_order,
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class Media(db.Model):
     __tablename__ = "media"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     file_url = db.Column(db.String(500), nullable=False)
@@ -532,25 +661,38 @@ class Media(db.Model):
             "url": self.watermark_url or self.file_url,
             "file_type": self.file_type,
             "file_size": self.file_size,
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class Message(db.Model):
     __tablename__ = "messages"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
-    recipient_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )
+    sender_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )
+    recipient_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     subject = db.Column(db.String(200), default="")
-    category = db.Column(db.String(50), default="general") # 'general' | 'project' | 'question' | 'feedback' | 'bug'
+    category = db.Column(
+        db.String(50), default="general"
+    )  # 'general' | 'project' | 'question' | 'feedback' | 'bug'
     message = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), default="new", index=True) # 'new' | 'read' | 'replied' | 'spam' | 'archived' | 'closed'
+    status = db.Column(
+        db.String(20), default="new", index=True
+    )  # 'new' | 'read' | 'replied' | 'spam' | 'archived' | 'closed'
     is_read = db.Column(db.Boolean, default=False, index=True)
     is_starred = db.Column(db.Boolean, default=False, index=True)
-    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    assigned_to = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )
     is_closed = db.Column(db.Boolean, default=False, index=True)
     user_can_reopen = db.Column(db.Boolean, default=True)
     closed_at = db.Column(db.DateTime, nullable=True)
@@ -561,14 +703,18 @@ class Message(db.Model):
     read_at = db.Column(db.DateTime, nullable=True)
     replied_at = db.Column(db.DateTime, nullable=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
-    attachments = db.Column(db.Text, default="[]") # JSON list các file / ảnh đính kèm ban đầu
+    attachments = db.Column(
+        db.Text, default="[]"
+    )  # JSON list các file / ảnh đính kèm ban đầu
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", foreign_keys=[user_id])
     sender = db.relationship("User", foreign_keys=[sender_id])
     recipient = db.relationship("User", foreign_keys=[recipient_id])
     assignee = db.relationship("User", foreign_keys=[assigned_to])
-    replies = db.relationship("MessageReply", backref="message", cascade="all, delete-orphan", lazy="dynamic")
+    replies = db.relationship(
+        "MessageReply", backref="message", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def to_dict(self, is_admin=False):
         # Thông tin user chi tiết nếu là admin xem (tránh subquery count N+1)
@@ -583,7 +729,7 @@ class Message(db.Model):
                 "avatar_url": target_u.avatar_url or "",
                 "role": target_u.role,
                 "is_active": getattr(target_u, "is_active", True),
-                "created_at": format_datetime_utc7(target_u.created_at)
+                "created_at": format_datetime_utc7(target_u.created_at),
             }
 
         # Lọc replies: user bình thường không thấy internal notes
@@ -597,7 +743,7 @@ class Message(db.Model):
                 "id": self.sender.id,
                 "username": self.sender.username,
                 "display_name": self.sender.display_name or self.sender.username,
-                "role": self.sender.role
+                "role": self.sender.role,
             }
 
         recipient_info = None
@@ -606,7 +752,7 @@ class Message(db.Model):
                 "id": self.recipient.id,
                 "username": self.recipient.username,
                 "display_name": self.recipient.display_name or self.recipient.username,
-                "role": self.recipient.role
+                "role": self.recipient.role,
             }
 
         parsed_attachments = []
@@ -628,15 +774,21 @@ class Message(db.Model):
             "category": self.category or "general",
             "message": self.message,
             "attachments": parsed_attachments,
-            "status": "closed" if self.is_closed else (self.status or ("read" if self.is_read else "new")),
+            "status": "closed"
+            if self.is_closed
+            else (self.status or ("read" if self.is_read else "new")),
             "is_read": bool(self.is_read),
             "is_starred": bool(self.is_starred),
             "is_closed": bool(self.is_closed),
             "user_can_reopen": bool(self.user_can_reopen),
             "closed_at": format_datetime_utc7(self.closed_at),
-            "last_reply_at": format_datetime_utc7(self.last_reply_at or self.replied_at),
+            "last_reply_at": format_datetime_utc7(
+                self.last_reply_at or self.replied_at
+            ),
             "assigned_to": self.assigned_to,
-            "assignee_name": (self.assignee.display_name or self.assignee.username) if self.assignee else None,
+            "assignee_name": (self.assignee.display_name or self.assignee.username)
+            if self.assignee
+            else None,
             "ip_address": self.ip_address or "",
             "device_type": self.device_type or "Desktop",
             "user_agent": self.user_agent or "",
@@ -644,19 +796,22 @@ class Message(db.Model):
             "replied_at": format_datetime_utc7(self.replied_at),
             "created_at": format_datetime_utc7(self.created_at),
             "user_info": user_info,
-            "replies": [r.to_dict() for r in rep_query.all()]
+            "replies": [r.to_dict() for r in rep_query.all()],
         }
+
 
 class MessageReply(db.Model):
     __tablename__ = "message_replies"
 
     id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.Integer, db.ForeignKey("messages.id"), nullable=False, index=True)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("messages.id"), nullable=False, index=True
+    )
     admin_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
-    sender_type = db.Column(db.String(20), default="admin") # 'admin' | 'user'
-    is_internal = db.Column(db.Boolean, default=False, index=True) # Ghi chú nội bộ
-    attachments = db.Column(db.Text, default="[]") # JSON list các file đính kèm
+    sender_type = db.Column(db.String(20), default="admin")  # 'admin' | 'user'
+    is_internal = db.Column(db.Boolean, default=False, index=True)  # Ghi chú nội bộ
+    attachments = db.Column(db.Text, default="[]")  # JSON list các file đính kèm
     reply_content = db.Column(db.Text, nullable=False)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -688,21 +843,27 @@ class MessageReply(db.Model):
             "message_id": self.message_id,
             "admin_id": self.admin_id,
             "user_id": self.user_id,
-            "sender_type": self.sender_type or ("user" if self.user_id and not self.admin_id else "admin"),
+            "sender_type": self.sender_type
+            or ("user" if self.user_id and not self.admin_id else "admin"),
             "sender_name": sender_name,
             "avatar_url": avatar_url,
             "is_internal": bool(self.is_internal),
             "attachments": parsed_attachments,
             "reply_content": self.reply_content,
-            "sent_at": format_datetime_utc7(self.sent_at)
+            "sent_at": format_datetime_utc7(self.sent_at),
         }
+
 
 class ReadingHistory(db.Model):
     __tablename__ = "reading_history"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    post_id = db.Column(
+        db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True
+    )
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     post = db.relationship("Post")
@@ -713,15 +874,20 @@ class ReadingHistory(db.Model):
             "user_id": self.user_id,
             "post_id": self.post_id,
             "viewed_at": format_datetime_utc7(self.viewed_at),
-            "post": self.post.to_dict(include_content=False) if self.post else None
+            "post": self.post.to_dict(include_content=False) if self.post else None,
         }
+
 
 class LikedPost(db.Model):
     __tablename__ = "liked_posts"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    post_id = db.Column(
+        db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True
+    )
     liked_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     post = db.relationship("Post")
@@ -733,15 +899,20 @@ class LikedPost(db.Model):
             "post_id": self.post_id,
             "liked_at": format_datetime_utc7(self.liked_at),
             "created_at": format_datetime_utc7(self.liked_at),
-            "post": self.post.to_dict(include_content=False) if self.post else None
+            "post": self.post.to_dict(include_content=False) if self.post else None,
         }
+
 
 class SavedPost(db.Model):
     __tablename__ = "saved_posts"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    post_id = db.Column(
+        db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True
+    )
     saved_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     post = db.relationship("Post")
@@ -753,23 +924,40 @@ class SavedPost(db.Model):
             "post_id": self.post_id,
             "saved_at": format_datetime_utc7(self.saved_at),
             "created_at": format_datetime_utc7(self.saved_at),
-            "post": self.post.to_dict(include_content=False) if self.post else None
+            "post": self.post.to_dict(include_content=False) if self.post else None,
         }
+
 
 class Comment(db.Model):
     __tablename__ = "comments"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey("comments.id"), nullable=True, index=True)
+    post_id = db.Column(
+        db.Integer, db.ForeignKey("posts.id"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    parent_id = db.Column(
+        db.Integer, db.ForeignKey("comments.id"), nullable=True, index=True
+    )
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     user = db.relationship("User", backref=db.backref("comments", lazy="dynamic"))
-    post = db.relationship("Post", backref=db.backref("comments", lazy="dynamic", cascade="all, delete-orphan"))
-    replies = db.relationship("Comment", backref=db.backref("parent", remote_side=[id]), cascade="all, delete-orphan", lazy="dynamic")
+    post = db.relationship(
+        "Post",
+        backref=db.backref("comments", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+    replies = db.relationship(
+        "Comment",
+        backref=db.backref("parent", remote_side=[id]),
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def to_dict(self, include_replies: bool = True):
         data = {
@@ -781,14 +969,20 @@ class Comment(db.Model):
             "author": {
                 "id": self.user.id,
                 "username": self.user.username,
-                "role": self.user.role
-            } if self.user else None,
+                "role": self.user.role,
+            }
+            if self.user
+            else None,
             "created_at": format_datetime_utc7(self.created_at),
-            "updated_at": format_datetime_utc7(self.updated_at)
+            "updated_at": format_datetime_utc7(self.updated_at),
         }
         if include_replies:
-            data["replies"] = [r.to_dict(include_replies=False) for r in self.replies.order_by(Comment.created_at.asc()).all()]
+            data["replies"] = [
+                r.to_dict(include_replies=False)
+                for r in self.replies.order_by(Comment.created_at.asc()).all()
+            ]
         return data
+
 
 class AuditLog(db.Model):
     __tablename__ = "audit_logs"
@@ -797,8 +991,12 @@ class AuditLog(db.Model):
     user_id = db.Column(db.Integer, nullable=True, index=True)
     username = db.Column(db.String(80), default="", index=True)
     action = db.Column(db.String(120), nullable=False)
-    feature = db.Column(db.String(80), nullable=False, index=True)  # "Xác thực", "Quản trị người dùng", "Quản lý bài viết", ...
-    status = db.Column(db.String(20), nullable=False, index=True)   # "success" | "failed"
+    feature = db.Column(
+        db.String(80), nullable=False, index=True
+    )  # "Xác thực", "Quản trị người dùng", "Quản lý bài viết", ...
+    status = db.Column(
+        db.String(20), nullable=False, index=True
+    )  # "success" | "failed"
     failure_reason = db.Column(db.Text, default="")
     target_type = db.Column(db.String(50), default="")
     target_id = db.Column(db.String(50), default="")
@@ -836,16 +1034,21 @@ class AuditLog(db.Model):
             "os_name": self.os_name or "Unknown",
             "browser_name": self.browser_name or "Unknown",
             "is_bot": bool(self.is_bot),
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class SeriesItem(db.Model):
     __tablename__ = "series_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=False, index=True)
-    item_type = db.Column(db.String(20), nullable=False)  # 'post' | 'video' | 'placeholder'
-    item_id = db.Column(db.Integer, nullable=True)        # Post.id hoặc Video.id
+    series_id = db.Column(
+        db.Integer, db.ForeignKey("series.id"), nullable=False, index=True
+    )
+    item_type = db.Column(
+        db.String(20), nullable=False
+    )  # 'post' | 'video' | 'placeholder'
+    item_id = db.Column(db.Integer, nullable=True)  # Post.id hoặc Video.id
     position = db.Column(db.Integer, default=1, nullable=False)
     section_title = db.Column(db.String(150), default="")
     title_override = db.Column(db.String(255), default="")
@@ -855,8 +1058,18 @@ class SeriesItem(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships linh hoạt
-    post = db.relationship("Post", primaryjoin="and_(SeriesItem.item_type=='post', foreign(SeriesItem.item_id)==Post.id)", uselist=False, viewonly=True)
-    video = db.relationship("Video", primaryjoin="and_(SeriesItem.item_type=='video', foreign(SeriesItem.item_id)==Video.id)", uselist=False, viewonly=True)
+    post = db.relationship(
+        "Post",
+        primaryjoin="and_(SeriesItem.item_type=='post', foreign(SeriesItem.item_id)==Post.id)",
+        uselist=False,
+        viewonly=True,
+    )
+    video = db.relationship(
+        "Video",
+        primaryjoin="and_(SeriesItem.item_type=='video', foreign(SeriesItem.item_id)==Video.id)",
+        uselist=False,
+        viewonly=True,
+    )
 
     def to_dict(self):
         title = self.title_override
@@ -896,21 +1109,28 @@ class SeriesItem(db.Model):
             "thumbnail_url": thumbnail_url,
             "status": status,
             "note": self.note or "",
-            "is_required": bool(self.is_required)
+            "is_required": bool(self.is_required),
         }
+
 
 class SeriesProgress(db.Model):
     __tablename__ = "series_progress"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    series_id = db.Column(db.Integer, db.ForeignKey("series.id"), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    series_id = db.Column(
+        db.Integer, db.ForeignKey("series.id"), nullable=False, index=True
+    )
     item_id = db.Column(db.Integer, nullable=True)
     item_type = db.Column(db.String(20), default="post")
     status = db.Column(db.String(20), default="completed")  # 'completed'
     percent = db.Column(db.Integer, default=100)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def to_dict(self):
         return {
@@ -921,23 +1141,35 @@ class SeriesProgress(db.Model):
             "item_type": self.item_type,
             "status": self.status,
             "percent": self.percent,
-            "completed_at": format_datetime_utc7(self.completed_at)
+            "completed_at": format_datetime_utc7(self.completed_at),
         }
+
 
 class Notification(db.Model):
     __tablename__ = "notifications"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True) # None = Admin broadcast
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )  # None = Admin broadcast
     title = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50), default="info") # 'contact' | 'post' | 'security' | 'system'
-    dedupe_key = db.Column(db.String(100), nullable=True, index=True) # conversation_id + type
+    type = db.Column(
+        db.String(50), default="info"
+    )  # 'contact' | 'post' | 'security' | 'system'
+    dedupe_key = db.Column(
+        db.String(100), nullable=True, index=True
+    )  # conversation_id + type
     link = db.Column(db.String(500), default="")
     is_read = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    user = db.relationship("User", backref=db.backref("notifications", cascade="all, delete-orphan", lazy="dynamic"))
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "notifications", cascade="all, delete-orphan", lazy="dynamic"
+        ),
+    )
 
     def to_dict(self):
         return {
@@ -949,20 +1181,29 @@ class Notification(db.Model):
             "dedupe_key": self.dedupe_key,
             "link": self.link,
             "is_read": bool(self.is_read),
-            "created_at": format_datetime_utc7(self.created_at)
+            "created_at": format_datetime_utc7(self.created_at),
         }
+
 
 class CycleSetting(db.Model):
     __tablename__ = "cycle_settings"
 
     id = db.Column(db.Integer, primary_key=True)
-    pin_hash = db.Column(db.String(255), nullable=True) # Mã PIN bảo vệ (mặc định '123456')
-    partner_name = db.Column(db.String(100), default="Em Bé") # Tên người yêu
-    cycle_length = db.Column(db.Integer, default=28) # Độ dài chu kỳ (thường 28 ngày)
-    period_length = db.Column(db.Integer, default=5) # Số ngày hành kinh (thường 4-7 ngày)
-    last_period_date = db.Column(db.Date, nullable=True) # Ngày bắt đầu kỳ kinh gần nhất (YYYY-MM-DD)
-    notes = db.Column(db.Text, default="") # Ghi chú cá nhân
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    pin_hash = db.Column(
+        db.String(255), nullable=True
+    )  # Mã PIN bảo vệ (mặc định '123456')
+    partner_name = db.Column(db.String(100), default="Em Bé")  # Tên người yêu
+    cycle_length = db.Column(db.Integer, default=28)  # Độ dài chu kỳ (thường 28 ngày)
+    period_length = db.Column(
+        db.Integer, default=5
+    )  # Số ngày hành kinh (thường 4-7 ngày)
+    last_period_date = db.Column(
+        db.Date, nullable=True
+    )  # Ngày bắt đầu kỳ kinh gần nhất (YYYY-MM-DD)
+    notes = db.Column(db.Text, default="")  # Ghi chú cá nhân
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def set_pin(self, pin: str):
         self.pin_hash = generate_password_hash(str(pin).strip())
@@ -978,7 +1219,9 @@ class CycleSetting(db.Model):
             "partner_name": self.partner_name or "Em Bé",
             "cycle_length": self.cycle_length or 28,
             "period_length": self.period_length or 5,
-            "last_period_date": self.last_period_date.isoformat() if self.last_period_date else None,
+            "last_period_date": self.last_period_date.isoformat()
+            if self.last_period_date
+            else None,
             "notes": self.notes or "",
-            "updated_at": format_datetime_utc7(self.updated_at)
+            "updated_at": format_datetime_utc7(self.updated_at),
         }

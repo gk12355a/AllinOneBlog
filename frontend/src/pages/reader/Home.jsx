@@ -10,12 +10,12 @@ export default function Home() {
   const [profile, setProfile] = useState(null);
   const [featuredProjects, setFeaturedProjects] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
-  const [contactForm, setContactForm] = useState({ 
-    name: user?.display_name || user?.username || '', 
-    email: user?.email || '', 
-    subject: '', 
+  const [contactForm, setContactForm] = useState({
+    name: user?.display_name || user?.username || '',
+    email: user?.email || '',
+    subject: '',
     category: 'general',
-    message: '' 
+    message: ''
   });
   const [honeypot, setHoneypot] = useState('');
   const [formStartTime, setFormStartTime] = useState(Date.now());
@@ -58,26 +58,26 @@ export default function Home() {
         fill_time_ms: fillTimeMs
       };
       const res = await api.post('/contact', payload);
-      setContactStatus({ 
-        loading: false, 
-        success: true, 
-        error: '' 
+      setContactStatus({
+        loading: false,
+        success: true,
+        error: ''
       });
-      setContactForm({ 
-        name: user?.display_name || user?.username || '', 
-        email: user?.email || '', 
-        subject: '', 
+      setContactForm({
+        name: user?.display_name || user?.username || '',
+        email: user?.email || '',
+        subject: '',
         category: 'general',
-        message: '' 
+        message: ''
       });
       setHoneypot('');
     } catch (err) {
       // err có thể là object response.data do Axios interceptor reject(error.response?.data || error.message)
       const data = err?.response?.data || err;
       const rawMsg = data?.message || err?.message || '';
-      const isRateLimit = err?.response?.status === 429 || 
-                          data?.error === 'rate_limit_exceeded' || 
-                          (typeof rawMsg === 'string' && (rawMsg.toLowerCase().includes('rate limit') || rawMsg.toLowerCase().includes('quá nhiều lần')));
+      const isRateLimit = err?.response?.status === 429 ||
+        data?.error === 'rate_limit_exceeded' ||
+        (typeof rawMsg === 'string' && (rawMsg.toLowerCase().includes('rate limit') || rawMsg.toLowerCase().includes('quá nhiều lần')));
 
       let errorMsg;
       if (isRateLimit) {
@@ -88,10 +88,10 @@ export default function Home() {
         errorMsg = (typeof rawMsg === 'string' && rawMsg) ? rawMsg : (lang === 'en' ? 'Failed to send message.' : 'Không thể gửi tin nhắn.');
       }
 
-      setContactStatus({ 
-        loading: false, 
-        success: false, 
-        error: errorMsg 
+      setContactStatus({
+        loading: false,
+        success: false,
+        error: errorMsg
       });
     }
   };
