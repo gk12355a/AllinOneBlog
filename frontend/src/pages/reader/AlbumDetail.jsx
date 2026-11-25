@@ -309,7 +309,7 @@ export default function AlbumDetail() {
           <p className="text-zinc-600 dark:text-zinc-400 font-semibold">{t('albums.empty')}</p>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {photos.map((photo, idx) => {
             const photoUrl = photo.photo_url || photo.url;
             return (
@@ -319,14 +319,14 @@ export default function AlbumDetail() {
                   setActivePhotoIndex(idx);
                   setIsZoomed(false);
                 }}
-                className="break-inside-avoid group relative cursor-pointer overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all duration-300"
+                className="aspect-square group relative cursor-pointer overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all duration-300"
               >
-                {/* Ảnh với tỉ lệ tự nhiên, không bị crop cứng */}
+                {/* Ảnh chuẩn hóa tỉ lệ vuông 1:1 bên ngoài; khi bấm vào Lightbox sẽ xem tỉ lệ gốc */}
                 <img
                   src={photoUrl}
                   alt={photo.caption || `${album.title} - ${idx + 1}`}
                   loading="lazy"
-                  className="w-full h-auto object-cover block group-hover:scale-[1.02] transition-transform duration-500 ease-out"
+                  className="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-500 ease-out"
                 />
 
                 {/* Hover overlay với caption và icon zoom */}
