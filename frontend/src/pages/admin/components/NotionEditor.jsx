@@ -249,8 +249,13 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         const start = ed.view.coordsAtPos(from);
         const end = ed.view.coordsAtPos(to);
         const containerRect = editorContainerRef.current.getBoundingClientRect();
+        const scrollTop = editorContainerRef.current.scrollTop;
         const left = Math.max(12, Math.min((start.left + end.left) / 2 - containerRect.left - 110, containerRect.width - 240));
-        const top = Math.max(4, start.top - containerRect.top - 44);
+        const spaceAbove = start.top - containerRect.top;
+        // Nếu dòng ở sát mép trên (không đủ chỗ phía trên), tự động đẩy Bubble Toolbar xuống dưới dòng đang chọn để không đè chữ
+        const top = spaceAbove >= 48
+          ? spaceAbove + scrollTop - 44
+          : (end.bottom - containerRect.top) + scrollTop + 8;
         setBubblePos({ open: true, top, left });
       } catch {
         setBubblePos((prev) => (prev.open ? { ...prev, open: false } : prev));
