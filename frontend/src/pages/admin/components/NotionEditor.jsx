@@ -4,6 +4,11 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
 import { Markdown } from 'tiptap-markdown';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -16,6 +21,7 @@ import {
   Heading3,
   List,
   ListOrdered,
+  CheckSquare,
   Quote,
   Minus,
   Image as ImageIcon,
@@ -28,10 +34,45 @@ import {
   Eye,
   Loader2,
   Clock,
-  BookOpen
+  BookOpen,
+  Plus,
+  GripVertical,
+  Palette,
+  RefreshCw,
+  Copy,
+  Trash2,
+  Check,
+  ChevronRight,
+  Type
 } from 'lucide-react';
 import { mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
+
+const TEXT_COLORS = [
+  { id: 'default', label: 'Mặc định', value: '' },
+  { id: 'gray', label: 'Xám', value: '#787774' },
+  { id: 'brown', label: 'Nâu', value: '#9f6b53' },
+  { id: 'orange', label: 'Cam', value: '#d9730d' },
+  { id: 'yellow', label: 'Vàng', value: '#cb912f' },
+  { id: 'green', label: 'Xanh lá', value: '#448361' },
+  { id: 'blue', label: 'Xanh dương', value: '#337ea9' },
+  { id: 'purple', label: 'Tím', value: '#9065b0' },
+  { id: 'pink', label: 'Hồng', value: '#c14c8a' },
+  { id: 'red', label: 'Đỏ', value: '#d44c47' }
+];
+
+const BG_COLORS = [
+  { id: 'default', label: 'Không nền', value: '' },
+  { id: 'gray', label: 'Nền xám', value: 'rgba(120, 119, 116, 0.18)' },
+  { id: 'brown', label: 'Nền nâu', value: 'rgba(159, 107, 83, 0.18)' },
+  { id: 'orange', label: 'Nền cam', value: 'rgba(217, 115, 13, 0.18)' },
+  { id: 'yellow', label: 'Nền vàng', value: 'rgba(203, 145, 47, 0.22)' },
+  { id: 'green', label: 'Nền xanh lá', value: 'rgba(68, 131, 97, 0.18)' },
+  { id: 'blue', label: 'Nền xanh dương', value: 'rgba(51, 126, 169, 0.18)' },
+  { id: 'purple', label: 'Nền tím', value: 'rgba(144, 101, 176, 0.18)' },
+  { id: 'pink', label: 'Nền hồng', value: 'rgba(193, 76, 138, 0.18)' },
+  { id: 'red', label: 'Nền đỏ', value: 'rgba(212, 76, 71, 0.18)' }
+];
 
 const POST_TEMPLATES = [
   {
@@ -113,7 +154,25 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
 
   // Slash command menu state
   const [slashMenu, setSlashMenu] = useState({ open: false, query: '', selectedIndex: 0 });
+
+  // Block side menu (+ and ⋮⋮) & Block action popover
+  const [hoveredBlock, setHoveredBlock] = useState({ top: 0, pos: null, visible: false });
+  const [blockMenuOpen, setBlockMenuOpen] = useState(false);
+  const [blockMenuSearch, setBlockMenuSearch] = useState('');
+  const [activeSubmenu, setActiveSubmenu] = useState(null); // 'turn_into' | 'color' | null
+  const [lastUsedColor, setLastUsedColor] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('notion_last_color') || 'null');
+    } catch {
+      return null;
+    }
+  });
+
+  // Bubble toolbar state (when selecting text)
+  const [bubblePos, setBubblePos] = useState({ open: false, top: 0, left: 0 });
+
   const fileInputRef = useRef(null);
+  const editorContainerRef = useRef(null);
   const isInternalUpdate = useRef(false);
 
   const editor = useEditor({
@@ -123,7 +182,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       }),
       Placeholder.configure({
         placeholder: placeholder || (lang === 'vi'
-          ? 'Nhập nội dung hoặc gõ "/" để mở menu chèn nhanh (tiêu đề, code, ảnh, danh sách)...'
+          ? 'Nhập nội dung hoặc gõ "/" để chèn block (tiêu đề, to-do, code, ảnh)...'
           : 'Write something or type "/" for commands...')
       }),
       Link.configure({
@@ -137,6 +196,11 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
           class: 'rounded-xl max-w-full h-auto my-4 border border-zinc-200 dark:border-zinc-800 shadow-sm'
         }
       }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       Markdown.configure({
         html: true,
         tightLists: true,
@@ -148,7 +212,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
     content: value || '',
     editorProps: {
       attributes: {
-        class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[340px] px-5 py-4 text-sm sm:text-base leading-relaxed'
+        class: 'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[360px] pl-14 pr-5 py-4 text-sm sm:text-base leading-relaxed'
       },
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
@@ -175,6 +239,23 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         return false;
       }
     },
+    onSelectionUpdate: ({ editor: ed }) => {
+      const { from, to, empty } = ed.state.selection;
+      if (empty || from === to || !editorContainerRef.current) {
+        setBubblePos((prev) => (prev.open ? { ...prev, open: false } : prev));
+        return;
+      }
+      try {
+        const start = ed.view.coordsAtPos(from);
+        const end = ed.view.coordsAtPos(to);
+        const containerRect = editorContainerRef.current.getBoundingClientRect();
+        const left = Math.max(12, Math.min((start.left + end.left) / 2 - containerRect.left - 110, containerRect.width - 240));
+        const top = Math.max(4, start.top - containerRect.top - 44);
+        setBubblePos({ open: true, top, left });
+      } catch {
+        setBubblePos((prev) => (prev.open ? { ...prev, open: false } : prev));
+      }
+    },
     onUpdate: ({ editor: ed }) => {
       isInternalUpdate.current = true;
       const md = ed.storage.markdown.getMarkdown();
@@ -186,18 +267,18 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       const textBefore = state.doc.textBetween(Math.max(0, from - 30), from, '\n', ' ');
       const match = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
       if (match) {
-        setSlashMenu((prev) => ({
+        setSlashMenu({
           open: true,
           query: match[1].toLowerCase(),
           selectedIndex: 0
-        }));
+        });
       } else if (slashMenu.open) {
         setSlashMenu({ open: false, query: '', selectedIndex: 0 });
       }
     }
   });
 
-  // Sync external value changes (e.g. switching posts or loading draft)
+  // Sync external value changes
   useEffect(() => {
     if (!editor) return;
     if (isInternalUpdate.current) {
@@ -235,56 +316,98 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
     }
   };
 
-  const slashCommands = useMemo(() => [
+  // Track hovered block for Notion Side Menu (+ and ⋮⋮)
+  const handleEditorMouseMove = (e) => {
+    if (!editor || !editorContainerRef.current || blockMenuOpen) return;
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const blockEl = target.closest('.ProseMirror > *');
+    if (!blockEl) return;
+
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const blockRect = blockEl.getBoundingClientRect();
+    const top = blockRect.top - containerRect.top + editorContainerRef.current.scrollTop;
+
+    let pos = null;
+    try {
+      pos = editor.view.posAtDOM(blockEl, 0);
+    } catch {
+      pos = null;
+    }
+    setHoveredBlock({ top: Math.max(8, top), pos, visible: true });
+  };
+
+  const turnIntoOptions = useMemo(() => [
+    {
+      id: 'text',
+      label: lang === 'vi' ? 'Văn bản (Text)' : 'Text',
+      icon: Type,
+      isActive: (ed) => ed.isActive('paragraph') && !ed.isActive('bulletList') && !ed.isActive('orderedList') && !ed.isActive('taskList'),
+      action: (ed) => ed.chain().focus().setParagraph().run()
+    },
     {
       id: 'h1',
-      label: lang === 'vi' ? 'Tiêu đề lớn (H1)' : 'Heading 1',
-      keywords: 'h1 heading 1 tieu de',
+      label: lang === 'vi' ? 'Tiêu đề 1 (H1)' : 'Heading 1',
       icon: Heading1,
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run()
+      isActive: (ed) => ed.isActive('heading', { level: 1 }),
+      action: (ed) => ed.chain().focus().setHeading({ level: 1 }).run()
     },
     {
       id: 'h2',
-      label: lang === 'vi' ? 'Tiêu đề vừa (H2)' : 'Heading 2',
-      keywords: 'h2 heading 2 tieu de',
+      label: lang === 'vi' ? 'Tiêu đề 2 (H2)' : 'Heading 2',
       icon: Heading2,
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run()
+      isActive: (ed) => ed.isActive('heading', { level: 2 }),
+      action: (ed) => ed.chain().focus().setHeading({ level: 2 }).run()
     },
     {
       id: 'h3',
-      label: lang === 'vi' ? 'Tiêu đề nhỏ (H3)' : 'Heading 3',
-      keywords: 'h3 heading 3 tieu de',
+      label: lang === 'vi' ? 'Tiêu đề 3 (H3)' : 'Heading 3',
       icon: Heading3,
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run()
+      isActive: (ed) => ed.isActive('heading', { level: 3 }),
+      action: (ed) => ed.chain().focus().setHeading({ level: 3 }).run()
     },
     {
       id: 'bullet',
-      label: lang === 'vi' ? 'Danh sách chấm' : 'Bullet List',
-      keywords: 'bullet list danh sach ul',
+      label: lang === 'vi' ? 'Danh sách chấm' : 'Bulleted list',
       icon: List,
+      isActive: (ed) => ed.isActive('bulletList'),
       action: (ed) => ed.chain().focus().toggleBulletList().run()
     },
     {
       id: 'ordered',
-      label: lang === 'vi' ? 'Danh sách số' : 'Numbered List',
-      keywords: 'ordered numbered list danh sach ol',
+      label: lang === 'vi' ? 'Danh sách số' : 'Numbered list',
       icon: ListOrdered,
+      isActive: (ed) => ed.isActive('orderedList'),
       action: (ed) => ed.chain().focus().toggleOrderedList().run()
+    },
+    {
+      id: 'todo',
+      label: lang === 'vi' ? 'Danh sách việc cần làm (To-do)' : 'To-do list',
+      icon: CheckSquare,
+      isActive: (ed) => ed.isActive('taskList'),
+      action: (ed) => ed.chain().focus().toggleTaskList().run()
+    },
+    {
+      id: 'code',
+      label: lang === 'vi' ? 'Khối Code' : 'Code',
+      icon: Code,
+      isActive: (ed) => ed.isActive('codeBlock'),
+      action: (ed) => ed.chain().focus().toggleCodeBlock().run()
     },
     {
       id: 'quote',
       label: lang === 'vi' ? 'Trích dẫn / Callout' : 'Quote / Callout',
-      keywords: 'quote callout trich dan ghi chu',
       icon: Quote,
+      isActive: (ed) => ed.isActive('blockquote'),
       action: (ed) => ed.chain().focus().toggleBlockquote().run()
-    },
-    {
-      id: 'code',
-      label: lang === 'vi' ? 'Khối Code' : 'Code Block',
-      keywords: 'code block ma nguon',
-      icon: Code,
-      action: (ed) => ed.chain().focus().toggleCodeBlock().run()
-    },
+    }
+  ], [lang]);
+
+  const slashCommands = useMemo(() => [
+    ...turnIntoOptions.map((item) => ({
+      ...item,
+      keywords: item.id + ' ' + item.label.toLowerCase()
+    })),
     {
       id: 'divider',
       label: lang === 'vi' ? 'Đường kẻ ngang' : 'Divider',
@@ -299,7 +422,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       icon: ImageIcon,
       action: () => fileInputRef.current?.click()
     }
-  ], [lang]);
+  ], [turnIntoOptions, lang]);
 
   const filteredCommands = useMemo(() => {
     if (!slashMenu.query) return slashCommands;
@@ -313,10 +436,75 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
     if (!editor) return;
     const { state } = editor;
     const { from } = state.selection;
-    const deleteLen = slashMenu.query.length + 1; // remove "/query"
+    const deleteLen = slashMenu.query.length + 1;
     editor.chain().focus().deleteRange({ from: Math.max(0, from - deleteLen), to: from }).run();
     cmd.action(editor);
     setSlashMenu({ open: false, query: '', selectedIndex: 0 });
+  };
+
+  const applyColor = (type, colorObj) => {
+    if (!editor) return;
+    if (hoveredBlock.pos !== null && editor.state.selection.empty) {
+      editor.chain().focus().setTextSelection(hoveredBlock.pos).selectParentNode().run();
+    }
+    if (type === 'text') {
+      if (colorObj.value) {
+        editor.chain().focus().setColor(colorObj.value).run();
+      } else {
+        editor.chain().focus().unsetColor().run();
+      }
+    } else {
+      if (colorObj.value) {
+        editor.chain().focus().setHighlight({ color: colorObj.value }).run();
+      } else {
+        editor.chain().focus().unsetHighlight().run();
+      }
+    }
+    const saved = { type, ...colorObj };
+    setLastUsedColor(saved);
+    localStorage.setItem('notion_last_color', JSON.stringify(saved));
+    setBlockMenuOpen(false);
+    setActiveSubmenu(null);
+  };
+
+  const handleInsertBlockBelow = () => {
+    if (!editor) return;
+    if (hoveredBlock.pos !== null) {
+      editor.chain().focus().setTextSelection(hoveredBlock.pos).run();
+    }
+    editor.chain().focus().createParagraphNear().insertContent('/').run();
+  };
+
+  const handleDuplicateBlock = () => {
+    if (!editor) return;
+    try {
+      const { state } = editor;
+      const pos = hoveredBlock.pos ?? state.selection.from;
+      const $pos = state.doc.resolve(pos);
+      const node = $pos.node(1) || $pos.parent;
+      if (node) {
+        const endPos = $pos.after(1);
+        editor.chain().focus().insertContentAt(endPos, node.toJSON()).run();
+      }
+    } catch {
+      // ignore
+    }
+    setBlockMenuOpen(false);
+  };
+
+  const handleDeleteBlock = () => {
+    if (!editor) return;
+    try {
+      const { state } = editor;
+      const pos = hoveredBlock.pos ?? state.selection.from;
+      const $pos = state.doc.resolve(pos);
+      const start = $pos.before(1);
+      const end = $pos.after(1);
+      editor.chain().focus().deleteRange({ from: start, to: end }).run();
+    } catch {
+      editor.chain().focus().deleteSelection().run();
+    }
+    setBlockMenuOpen(false);
   };
 
   const handleSetLink = () => {
@@ -348,7 +536,6 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
     showToast(lang === 'vi' ? 'Đã chèn mẫu bài viết!' : 'Template applied!');
   };
 
-  // Word count & reading time
   const stats = useMemo(() => {
     const text = (value || '').trim();
     const words = text ? text.split(/\s+/).length : 0;
@@ -367,7 +554,6 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         isFocusMode ? 'fixed inset-3 z-[60] flex flex-col shadow-2xl' : 'relative'
       }`}
     >
-      {/* Hidden file input for image upload */}
       <input
         ref={fileInputRef}
         type="file"
@@ -419,27 +605,11 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
               </button>
               <button
                 type="button"
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                className={`p-1.5 rounded-lg text-xs transition ${editor.isActive('bulletList') ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/70 dark:hover:bg-zinc-800'}`}
-                title="Bullet List"
+                onClick={() => editor.chain().focus().toggleTaskList().run()}
+                className={`p-1.5 rounded-lg text-xs transition ${editor.isActive('taskList') ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/70 dark:hover:bg-zinc-800'}`}
+                title="To-do List"
               >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                className={`p-1.5 rounded-lg text-xs transition ${editor.isActive('orderedList') ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/70 dark:hover:bg-zinc-800'}`}
-                title="Numbered List"
-              >
-                <ListOrdered className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                className={`p-1.5 rounded-lg text-xs transition ${editor.isActive('blockquote') ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/70 dark:hover:bg-zinc-800'}`}
-                title="Quote / Callout"
-              >
-                <Quote className="w-4 h-4" />
+                <CheckSquare className="w-4 h-4" />
               </button>
               <button
                 type="button"
@@ -497,7 +667,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
           </div>
         </div>
 
-        {/* Right Controls: Mode Switcher + Focus Mode */}
+        {/* Right Controls */}
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg bg-zinc-200/70 dark:bg-zinc-800 p-0.5 text-xs font-semibold">
             <button
@@ -538,14 +708,269 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       </div>
 
       {/* Editor Body */}
-      <div className={`relative ${isFocusMode ? 'flex-1 overflow-y-auto' : 'max-h-[500px] overflow-y-auto'}`}>
+      <div
+        ref={editorContainerRef}
+        onMouseMove={handleEditorMouseMove}
+        onMouseLeave={() => {
+          if (!blockMenuOpen) setHoveredBlock((prev) => ({ ...prev, visible: false }));
+        }}
+        className={`relative ${isFocusMode ? 'flex-1 overflow-y-auto' : 'max-h-[520px] overflow-y-auto'}`}
+      >
         {mode === 'notion' ? (
           <div className="relative">
+            {/* Notion Side Menu (+ and ⋮⋮) */}
+            {hoveredBlock.visible && (
+              <div
+                style={{ top: hoveredBlock.top }}
+                className="absolute left-2 z-20 flex items-center gap-0.5 transition-all duration-75"
+              >
+                <button
+                  type="button"
+                  onClick={handleInsertBlockBelow}
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition"
+                  title={lang === 'vi' ? 'Thêm block bên dưới' : 'Add block below'}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBlockMenuOpen(!blockMenuOpen);
+                    setActiveSubmenu(null);
+                    setBlockMenuSearch('');
+                  }}
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-grab"
+                  title={lang === 'vi' ? 'Mở menu block (Turn into, Color, Xóa...)' : 'Block menu'}
+                >
+                  <GripVertical className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Block Action Menu Popover (Turn into, Color, Duplicate, Delete) */}
+            {blockMenuOpen && (
+              <div
+                style={{ top: hoveredBlock.top + 26 }}
+                className="absolute left-4 z-40 w-60 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-1.5 text-xs"
+              >
+                <input
+                  type="text"
+                  value={blockMenuSearch}
+                  onChange={(e) => setBlockMenuSearch(e.target.value)}
+                  placeholder="Search actions..."
+                  autoFocus
+                  className="w-full px-2.5 py-1.5 mb-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                />
+
+                {/* Turn into */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubmenu(activeSubmenu === 'turn_into' ? null : 'turn_into')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Turn into</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+
+                  {activeSubmenu === 'turn_into' && (
+                    <div className="mt-1 ml-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 space-y-0.5 max-h-56 overflow-y-auto">
+                      {turnIntoOptions
+                        .filter((opt) => !blockMenuSearch || opt.label.toLowerCase().includes(blockMenuSearch.toLowerCase()))
+                        .map((opt) => {
+                          const Icon = opt.icon;
+                          const active = editor ? opt.isActive(editor) : false;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                if (editor && hoveredBlock.pos !== null) {
+                                  editor.chain().focus().setTextSelection(hoveredBlock.pos).run();
+                                }
+                                opt.action(editor);
+                                setBlockMenuOpen(false);
+                              }}
+                              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-zinc-700 dark:text-zinc-200"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                                <span>{opt.label}</span>
+                              </span>
+                              {active && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Color */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubmenu(activeSubmenu === 'color' ? null : 'color')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Palette className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Color</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+
+                  {activeSubmenu === 'color' && (
+                    <div className="mt-1 ml-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 space-y-2 max-h-64 overflow-y-auto p-1">
+                      {lastUsedColor && (
+                        <div>
+                          <div className="text-[10px] font-bold uppercase text-zinc-400 mb-1">Last used</div>
+                          <button
+                            type="button"
+                            onClick={() => applyColor(lastUsedColor.type, lastUsedColor)}
+                            className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          >
+                            <span
+                              className="w-4 h-4 rounded border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-[10px] font-bold"
+                              style={{
+                                color: lastUsedColor.type === 'text' ? lastUsedColor.value : undefined,
+                                backgroundColor: lastUsedColor.type === 'bg' ? lastUsedColor.value : undefined
+                              }}
+                            >
+                              A
+                            </span>
+                            <span>{lastUsedColor.label}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="text-[10px] font-bold uppercase text-zinc-400 mb-1">Text color</div>
+                        <div className="grid grid-cols-5 gap-1">
+                          {TEXT_COLORS.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => applyColor('text', c)}
+                              title={c.label}
+                              className="h-7 rounded border border-zinc-200 dark:border-zinc-800 hover:scale-105 transition flex items-center justify-center font-bold text-xs"
+                              style={{ color: c.value || 'inherit' }}
+                            >
+                              A
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] font-bold uppercase text-zinc-400 mb-1">Background color</div>
+                        <div className="grid grid-cols-5 gap-1">
+                          {BG_COLORS.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => applyColor('bg', c)}
+                              title={c.label}
+                              className="h-7 rounded border border-zinc-200 dark:border-zinc-800 hover:scale-105 transition flex items-center justify-center text-xs"
+                              style={{ backgroundColor: c.value || 'transparent' }}
+                            >
+                              {!c.value && '∅'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
+
+                <button
+                  type="button"
+                  onClick={handleDuplicateBlock}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                >
+                  <span className="flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Duplicate</span>
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-mono">Ctrl+D</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteBlock}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600"
+                >
+                  <span className="flex items-center gap-2">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </span>
+                  <span className="text-[10px] opacity-70 font-mono">Del</span>
+                </button>
+              </div>
+            )}
+
+            {/* Bubble Toolbar (when selecting text) */}
+            {bubblePos.open && editor && (
+              <div
+                style={{ top: bubblePos.top, left: bubblePos.left }}
+                className="absolute z-40 flex items-center gap-0.5 px-1.5 py-1 rounded-xl bg-zinc-900 dark:bg-zinc-800 text-white shadow-2xl border border-zinc-700"
+              >
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  className={`p-1.5 rounded-lg hover:bg-zinc-700 ${editor.isActive('bold') ? 'text-indigo-400' : ''}`}
+                >
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  className={`p-1.5 rounded-lg hover:bg-zinc-700 ${editor.isActive('italic') ? 'text-indigo-400' : ''}`}
+                >
+                  <Italic className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleCode().run()}
+                  className={`p-1.5 rounded-lg hover:bg-zinc-700 ${editor.isActive('code') ? 'text-indigo-400' : ''}`}
+                >
+                  <Code className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetLink}
+                  className={`p-1.5 rounded-lg hover:bg-zinc-700 ${editor.isActive('link') ? 'text-indigo-400' : ''}`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyColor('text', { id: 'red', label: 'Đỏ', value: '#d44c47' })}
+                  className="px-1.5 py-1 rounded-lg hover:bg-zinc-700 text-xs font-bold text-red-400"
+                  title="Chữ đỏ"
+                >
+                  A
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyColor('bg', { id: 'yellow', label: 'Nền vàng', value: 'rgba(203, 145, 47, 0.28)' })}
+                  className="px-1.5 py-1 rounded-lg hover:bg-zinc-700 text-xs font-bold bg-amber-500/30 text-amber-200"
+                  title="Highlight vàng"
+                >
+                  H
+                </button>
+              </div>
+            )}
+
             <EditorContent editor={editor} />
 
             {/* Slash Command Floating Menu */}
             {slashMenu.open && filteredCommands.length > 0 && (
-              <div className="sticky bottom-3 left-4 ml-4 mb-3 w-64 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl z-30 p-1.5">
+              <div className="sticky bottom-3 left-4 ml-12 mb-3 w-64 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl z-30 p-1.5 max-h-64 overflow-y-auto">
                 <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   {lang === 'vi' ? 'Chèn nhanh (/)' : 'Insert Block (/)'}
                 </div>
@@ -596,8 +1021,8 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         </div>
         <div className="hidden sm:block">
           {lang === 'vi'
-            ? 'Mẹo: Gõ "/" để chèn nhanh • Dán (Ctrl+V) hoặc kéo thả ảnh để tự động upload'
-            : 'Tip: Type "/" for commands • Paste or drop images to auto-upload'}
+            ? 'Rê chuột vào dòng để mở (+ / ⋮⋮) • Bôi đen để định dạng • Gõ "/" để chèn block'
+            : 'Hover line for (+ / ⋮⋮) • Select text to format • Type "/" for blocks'}
         </div>
       </div>
     </div>
