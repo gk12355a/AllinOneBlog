@@ -286,7 +286,7 @@ def add_photo_to_album(album_id: int):
         return api_response(success=False, message="No file attached.", status_code=400)
     file = request.files["file"]
     caption = request.form.get("caption", "").strip()
-    apply_watermark = request.form.get("apply_watermark", "true").lower() in ["true", "1"]
+    apply_watermark = request.form.get("apply_watermark", "false").lower() in ["true", "1"]
 
     file_url, wm_url, _ = WatermarkService.process_and_save_image(file)
     selected_url = wm_url if (apply_watermark and wm_url) else file_url
