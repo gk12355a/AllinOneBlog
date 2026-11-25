@@ -22,13 +22,13 @@ export default function Footer() {
 
           {/* Social Links */}
           <div className="flex items-center space-x-5 text-zinc-600 dark:text-zinc-300">
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="GitHub">
+            <a href="https://github.com/gk12355a" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="GitHub">
               <GithubIcon className="w-5 h-5" />
             </a>
-            <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="LinkedIn">
+            <a href="https://www.linkedin.com/in/ki%C3%AAn-%C4%91%E1%BB%97-tr%C3%AD-05471a2b8/" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="LinkedIn">
               <LinkedinIcon className="w-5 h-5" />
             </a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="YouTube">
+            <a href="https://www.youtube.com/@kienotri36" target="_blank" rel="noreferrer" className="hover:text-zinc-950 dark:hover:text-white transition-colors" title="YouTube">
               <YoutubeIcon className="w-5 h-5" />
             </a>
             <a href="/rss.xml" target="_blank" rel="noreferrer" className="hover:text-orange-500 transition-colors" title="RSS Feed">
