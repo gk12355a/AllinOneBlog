@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import CodeBlock from '@tiptap/extension-code-block';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
@@ -73,6 +74,58 @@ const BG_COLORS = [
   { id: 'pink', label: 'Nền hồng', value: 'rgba(193, 76, 138, 0.18)' },
   { id: 'red', label: 'Nền đỏ', value: 'rgba(212, 76, 71, 0.18)' }
 ];
+
+const CODE_LANGUAGES = [
+  'plaintext', 'bash', 'c', 'cpp', 'csharp', 'css', 'dockerfile', 'go',
+  'html', 'java', 'javascript', 'json', 'kotlin', 'lua', 'makefile',
+  'markdown', 'nginx', 'php', 'python', 'ruby', 'rust', 'scss', 'sql',
+  'swift', 'typescript', 'xml', 'yaml'
+];
+
+function NotionCodeBlock({ node, updateAttributes }) {
+  const [copied, setCopied] = useState(false);
+  const language = node.attrs.language || 'plaintext';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(node.textContent || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <NodeViewWrapper className="relative group my-3">
+      <div
+        contentEditable={false}
+        className="flex items-center justify-between px-3 py-1.5 rounded-t-xl bg-zinc-200/70 dark:bg-zinc-800/90 border border-b-0 border-zinc-200 dark:border-zinc-700 text-xs"
+      >
+        <select
+          value={language}
+          onChange={(e) => updateAttributes({ language: e.target.value })}
+          className="bg-transparent font-medium text-zinc-700 dark:text-zinc-300 focus:outline-none cursor-pointer"
+        >
+          {CODE_LANGUAGES.map((langOpt) => (
+            <option key={langOpt} value={langOpt} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+              {langOpt}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-zinc-300/60 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition"
+          title="Copy code"
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+          <span>{copied ? 'Copied' : 'Copy'}</span>
+        </button>
+      </div>
+      <pre className="!mt-0 !rounded-t-none">
+        <NodeViewContent as="code" />
+      </pre>
+    </NodeViewWrapper>
+  );
+}
 
 const POST_TEMPLATES = [
   {
@@ -173,12 +226,42 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
 
   const fileInputRef = useRef(null);
   const editorContainerRef = useRef(null);
+  const blockMenuRef = useRef(null);
   const isInternalUpdate = useRef(false);
+
+  // Đóng Block Action Menu khi bấm ra ngoài hoặc nhấn Escape
+  useEffect(() => {
+    if (!blockMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
+        setBlockMenuOpen(false);
+        setActiveSubmenu(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setBlockMenuOpen(false);
+        setActiveSubmenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [blockMenuOpen]);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] }
+        heading: { levels: [1, 2, 3] },
+        codeBlock: false
+      }),
+      CodeBlock.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(NotionCodeBlock);
+        }
       }),
       Placeholder.configure({
         placeholder: placeholder || (lang === 'vi'
@@ -755,6 +838,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
             {/* Block Action Menu Popover (Turn into, Color, Duplicate, Delete) */}
             {blockMenuOpen && (
               <div
+                ref={blockMenuRef}
                 style={{ top: hoveredBlock.top + 26 }}
                 className="absolute left-4 z-40 w-60 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-1.5 text-xs"
               >
