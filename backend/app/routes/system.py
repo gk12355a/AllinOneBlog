@@ -1,4 +1,5 @@
 import time
+from xml.sax.saxutils import escape
 from flask import Blueprint, Response, current_app
 from sqlalchemy import text
 from app.extensions import db
@@ -77,7 +78,7 @@ def rss_feed():
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<rss version="2.0">',
         '  <channel>',
-        '    <title>AllinOneBlog - Personal Portfolio & Blog</title>',
+        '    <title>AllinOneBlog - Personal Portfolio &amp; Blog</title>',
         f'    <link>{base_url}</link>',
         '    <description>Chia sẻ kiến thức lập trình, kỹ thuật và cuộc sống.</description>',
         '    <language>vi</language>'
@@ -85,9 +86,9 @@ def rss_feed():
     
     for p in posts:
         rss.append('    <item>')
-        rss.append(f'      <title>{p.title}</title>')
+        rss.append(f'      <title>{escape(p.title or "")}</title>')
         rss.append(f'      <link>{base_url}/blog/{p.slug}</link>')
-        rss.append(f'      <description>{p.excerpt or p.title}</description>')
+        rss.append(f'      <description>{escape(p.excerpt or p.title or "")}</description>')
         rss.append(f'      <guid>{base_url}/blog/{p.slug}</guid>')
         pub_date = p.published_at.strftime("%a, %d %b %Y %H:%M:%S GMT") if p.published_at else p.created_at.strftime("%a, %d %b %Y %H:%M:%S GMT")
         rss.append(f'      <pubDate>{pub_date}</pubDate>')
