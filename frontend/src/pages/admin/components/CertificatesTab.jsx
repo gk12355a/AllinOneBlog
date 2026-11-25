@@ -207,7 +207,11 @@ export default function CertificatesTab({ certificates = [], onCertificatesUpdat
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-sm">
                 {paginatedCertificates.map((cert) => (
-                  <tr key={cert.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition">
+                  <tr
+                    key={cert.id}
+                    onClick={() => openEditModal(cert)}
+                    className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition cursor-pointer"
+                  >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shrink-0 flex items-center justify-center">
@@ -260,7 +264,7 @@ export default function CertificatesTab({ certificates = [], onCertificatesUpdat
                     <td className="py-3.5 px-4 text-center font-mono text-xs text-zinc-500">
                       {cert.sort_order ?? 0}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         {cert.credential_url && (
                           <a
