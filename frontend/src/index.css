@@ -353,3 +353,112 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
   text-decoration: line-through;
   opacity: 0.6;
 }
+
+/* Notion Editor & Markdown Preview Typography (H1-H3, Code Block, Quote, Lists) */
+.ProseMirror h1,
+.notion-preview h1 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror h2,
+.notion-preview h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.ProseMirror h3,
+.notion-preview h3 {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  margin-top: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.ProseMirror pre,
+.notion-preview pre {
+  background-color: #f4f4f5;
+  color: #18181b;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin: 0.75rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+.dark .ProseMirror pre,
+.dark .notion-preview pre {
+  background-color: #18181b;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+.ProseMirror code,
+.notion-preview code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875em;
+  background-color: rgba(135, 131, 120, 0.15);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+}
+
+.ProseMirror pre code,
+.notion-preview pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.ProseMirror blockquote,
+.notion-preview blockquote {
+  border-left: 3px solid #6366f1;
+  padding: 0.5rem 1rem;
+  margin: 0.75rem 0;
+  background-color: rgba(99, 102, 241, 0.06);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #52525b;
+}
+
+.dark .ProseMirror blockquote,
+.dark .notion-preview blockquote {
+  color: #a1a1aa;
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.ProseMirror ul:not([data-type="taskList"]),
+.notion-preview ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror ol,
+.notion-preview ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror hr,
+.notion-preview hr {
+  border: none;
+  border-top: 1px solid #e4e4e7;
+  margin: 1rem 0;
+}
+
+.dark .ProseMirror hr,
+.dark .notion-preview hr {
+  border-top-color: #27272a;
+}

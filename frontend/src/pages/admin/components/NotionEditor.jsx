@@ -1005,7 +1005,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
               className="w-full h-full min-h-[360px] p-4 font-mono text-sm bg-transparent focus:outline-none resize-none"
             />
             <div
-              className="p-4 prose prose-zinc dark:prose-invert max-w-none text-sm overflow-y-auto"
+              className="p-4 notion-preview max-w-none text-sm overflow-y-auto"
               dangerouslySetInnerHTML={{ __html: renderedPreview }}
             />
           </div>
