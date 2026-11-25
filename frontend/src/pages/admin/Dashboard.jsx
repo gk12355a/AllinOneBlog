@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  ExternalLink
+  ExternalLink,
+  Award
 } from 'lucide-react';
 import { profileApi, postApi, mediaApi, contentApi, seriesApi } from '../../services/api';
 import userService from '../../services/userService';
@@ -36,6 +37,7 @@ import VideosTab from './components/VideosTab';
 import UsersTab from './components/UsersTab';
 import AuditLogsTab from './components/AuditLogsTab';
 import CycleTrackerTab from './components/CycleTrackerTab';
+import CertificatesTab from './components/CertificatesTab';
 
 export default function AdminDashboard() {
   const { user, t, lang } = useApp();
@@ -61,6 +63,7 @@ export default function AdminDashboard() {
   const [mediaList, setMediaList] = useState([]);
   const [messages, setMessages] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [certificates, setCertificates] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -101,7 +104,7 @@ export default function AdminDashboard() {
   const fetchAdminData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [sRes, pRes, mRes, msgRes, projRes, profRes, seriesRes, albumsRes, vRes, uRes] = await Promise.all([
+      const [sRes, pRes, mRes, msgRes, projRes, profRes, seriesRes, albumsRes, vRes, uRes, certRes] = await Promise.all([
         profileApi.getAdminStats(),
         postApi.getAdminPosts(),
         mediaApi.getMediaList(),
@@ -111,7 +114,8 @@ export default function AdminDashboard() {
         seriesApi.getSeriesList(),
         mediaApi.getAlbums(),
         contentApi.getVideos({ admin: true }),
-        userService.getAdminUsers()
+        userService.getAdminUsers(),
+        contentApi.getCertificates()
       ]);
 
       const sData = sRes?.data || sRes;
@@ -124,6 +128,7 @@ export default function AdminDashboard() {
       const albumsData = albumsRes?.data || albumsRes;
       const vData = vRes?.data || vRes;
       const uData = uRes?.data || uRes;
+      const certData = certRes?.data || certRes;
 
       if (sData) setStats(sData);
       if (pData?.items) setPosts(pData.items);
@@ -136,6 +141,7 @@ export default function AdminDashboard() {
       if (Array.isArray(albumsData)) setAlbumsList(albumsData);
       if (Array.isArray(vData)) setVideosList(vData);
       if (Array.isArray(uData)) setUsersList(uData);
+      if (Array.isArray(certData)) setCertificates(certData);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
@@ -174,7 +180,8 @@ export default function AdminDashboard() {
       groupLabelEn: 'PORTFOLIO',
       items: [
         { key: 'profile', label: t('admin.tab_profile') || 'Hồ sơ & Trang chủ', icon: UserCheck },
-        { key: 'projects', label: t('admin.tab_projects') || 'Dự án nổi bật', icon: FolderGit2, count: projects.length }
+        { key: 'projects', label: t('admin.tab_projects') || 'Dự án nổi bật', icon: FolderGit2, count: projects.length },
+        { key: 'certificates', label: t('admin.tab_certificates') || 'Chứng chỉ & Bằng cấp', icon: Award, count: certificates.length }
       ]
     },
     {
@@ -353,6 +360,10 @@ export default function AdminDashboard() {
 
           {activeTab === 'projects' && (
             <ProjectsTab projects={projects} onProjectsUpdated={() => fetchAdminData(true)} />
+          )}
+
+          {activeTab === 'certificates' && (
+            <CertificatesTab certificates={certificates} onCertificatesUpdated={() => fetchAdminData(true)} />
           )}
 
           {activeTab === 'series' && (
