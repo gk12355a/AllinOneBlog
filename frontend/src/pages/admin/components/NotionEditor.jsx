@@ -45,7 +45,10 @@ import {
   Check,
   ChevronRight,
   ChevronDown,
-  Type
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 import { mediaApi } from '../../../services/api';
 import { useApp } from '../../../contexts/AppContext';
@@ -218,6 +221,77 @@ function NotionCodeBlock({ node, updateAttributes }) {
   );
 }
 
+function NotionImageBlock({ node, updateAttributes, deleteNode }) {
+  const { src, alt, width = '100%', align = 'center' } = node.attrs;
+
+  const alignClass =
+    align === 'left' ? 'mr-auto' : align === 'right' ? 'ml-auto' : 'mx-auto';
+
+  return (
+    <NodeViewWrapper className="relative group my-4">
+      <div className={`relative w-fit max-w-full ${alignClass}`} style={{ width }}>
+        {/* Notion-style Image Hover Toolbar */}
+        <div
+          contentEditable={false}
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute top-2 right-2 z-20 flex items-center gap-0.5 px-1.5 py-1 rounded-xl bg-zinc-900/90 text-white shadow-xl border border-zinc-700/80 text-[11px]"
+        >
+          {['50%', '75%', '100%'].map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => updateAttributes({ width: w })}
+              className={`px-1.5 py-0.5 rounded hover:bg-zinc-700 font-medium ${width === w ? 'bg-indigo-600 text-white' : ''}`}
+              title={`Kích thước ${w}`}
+            >
+              {w}
+            </button>
+          ))}
+          <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+          <button
+            type="button"
+            onClick={() => updateAttributes({ align: 'left' })}
+            className={`p-1 rounded hover:bg-zinc-700 ${align === 'left' ? 'text-indigo-400' : ''}`}
+            title="Canh trái"
+          >
+            <AlignLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => updateAttributes({ align: 'center' })}
+            className={`p-1 rounded hover:bg-zinc-700 ${align === 'center' ? 'text-indigo-400' : ''}`}
+            title="Canh giữa"
+          >
+            <AlignCenter className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => updateAttributes({ align: 'right' })}
+            className={`p-1 rounded hover:bg-zinc-700 ${align === 'right' ? 'text-indigo-400' : ''}`}
+            title="Canh phải"
+          >
+            <AlignRight className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+          <button
+            type="button"
+            onClick={deleteNode}
+            className="p-1 rounded hover:bg-red-600 text-red-400 hover:text-white transition"
+            title="Xóa ảnh"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <img
+          src={src}
+          alt={alt || 'image'}
+          className="rounded-xl max-w-full h-auto border border-zinc-200 dark:border-zinc-800 shadow-sm block"
+        />
+      </div>
+    </NodeViewWrapper>
+  );
+}
+
 const POST_TEMPLATES = [
   {
     id: 'tutorial',
@@ -367,7 +441,18 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
           class: 'text-indigo-600 dark:text-indigo-400 underline cursor-pointer'
         }
       }),
-      Image.configure({
+      Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            width: { default: '100%' },
+            align: { default: 'center' }
+          };
+        },
+        addNodeView() {
+          return ReactNodeViewRenderer(NotionImageBlock);
+        }
+      }).configure({
         HTMLAttributes: {
           class: 'rounded-xl max-w-full h-auto my-4 border border-zinc-200 dark:border-zinc-800 shadow-sm'
         }
@@ -750,6 +835,14 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       const { state } = editor;
       const pos = hoveredBlock.pos ?? state.selection.from;
       const $pos = state.doc.resolve(pos);
+      if ($pos.depth === 0) {
+        const node = state.doc.nodeAt(pos);
+        if (node) {
+          editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
+          setBlockMenuOpen(false);
+          return;
+        }
+      }
       const start = $pos.before(1);
       const end = $pos.after(1);
       editor.chain().focus().deleteRange({ from: start, to: end }).run();
