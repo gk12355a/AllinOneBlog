@@ -3,10 +3,18 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { BookOpen, Clock, Tag, Eye, Search, Sparkles, Calendar, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import { useApp } from '../../contexts/AppContext';
+import useSEO from '../../hooks/useSEO';
 import Pagination from '../../components/common/Pagination';
 
 export default function BlogList() {
   const { lang, t } = useApp();
+
+  useSEO({
+    title: lang === 'vi' ? 'Bài viết' : 'Blog',
+    description: lang === 'vi'
+      ? 'Tổng hợp bài viết chuyên sâu về lập trình, DevOps, Kubernetes và công nghệ.'
+      : 'In-depth articles on software engineering, DevOps, Kubernetes, and technology.'
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);
   const [tags, setTags] = useState([]);
