@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import CopyForLLMButton from '../../components/CopyForLLMButton';
 import {
   BookOpen,
   ArrowLeft,
@@ -204,13 +205,53 @@ export default function SeriesDetail() {
 
         <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between space-y-6">
           <div className="space-y-4">
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold border border-blue-200/50 dark:border-blue-800/50">
-                Lộ trình học tổng hợp
-              </span>
-              <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200 dark:border-zinc-700">
-                Cấp độ: {levelLabel}
-              </span>
+            <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold border border-blue-200/50 dark:border-blue-800/50">
+                  Lộ trình học tổng hợp
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium border border-zinc-200 dark:border-zinc-700">
+                  Cấp độ: {levelLabel}
+                </span>
+              </div>
+
+              <CopyForLLMButton
+                getMarkdown={async () => {
+                  const postsInSeries = series.posts || [];
+                  const fullPosts = await Promise.all(
+                    postsInSeries.map(async (p) => {
+                      if (p.content) return p;
+                      try {
+                        const res = await api.get(`/posts/${p.slug}`);
+                        return res?.data || res || p;
+                      } catch {
+                        return p;
+                      }
+                    })
+                  );
+
+                  const header = [
+                    `# Series: ${series.title}`,
+                    '',
+                    `> **URL:** ${window.location.href}`,
+                    `> **Level:** ${levelLabel}`,
+                    series.description ? `> **Description:** ${series.description}` : null,
+                    `> **Total Articles:** ${fullPosts.length}`,
+                    '',
+                    '---',
+                    ''
+                  ].filter((line) => line !== null).join('\n');
+
+                  const body = fullPosts.map((p, idx) => [
+                    `## ${idx + 1}. ${p.title}`,
+                    `> Link: ${window.location.origin}/blog/${p.slug}`,
+                    '',
+                    p.content || p.excerpt || ''
+                  ].join('\n')).join('\n\n---\n\n');
+
+                  return `${header}\n${body}`;
+                }}
+              />
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight leading-snug text-balance">
