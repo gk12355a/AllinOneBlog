@@ -318,7 +318,9 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
   const fileInputRef = useRef(null);
   const editorContainerRef = useRef(null);
   const blockMenuRef = useRef(null);
+  const draggedBlockPosRef = useRef(null);
   const isInternalUpdate = useRef(false);
+  const [dropIndicator, setDropIndicator] = useState({ visible: false, top: 0, targetPos: null });
 
   // Đóng Block Action Menu khi bấm ra ngoài hoặc nhấn Escape
   useEffect(() => {
@@ -514,6 +516,74 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
       pos = null;
     }
     setHoveredBlock({ top: Math.max(8, top), pos, visible: true });
+  };
+
+  // Kéo thả block bằng nút ⋮⋮ (Drag & Drop)
+  const handleDragStart = (e) => {
+    if (hoveredBlock.pos === null) return;
+    draggedBlockPosRef.current = hoveredBlock.pos;
+    setBlockMenuOpen(false);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'notion-block');
+  };
+
+  const handleContainerDragOver = (e) => {
+    if (draggedBlockPosRef.current === null || !editor || !editorContainerRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const blockEl = target.closest('.ProseMirror > *');
+    if (!blockEl) return;
+
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const blockRect = blockEl.getBoundingClientRect();
+    const isAfter = e.clientY > blockRect.top + blockRect.height / 2;
+    const lineTop = (isAfter ? blockRect.bottom : blockRect.top) - containerRect.top + editorContainerRef.current.scrollTop;
+
+    try {
+      const domPos = editor.view.posAtDOM(blockEl, 0);
+      const $pos = editor.state.doc.resolve(domPos);
+      const targetPos = isAfter ? $pos.after(1) : $pos.before(1);
+      setDropIndicator({ visible: true, top: lineTop, targetPos });
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleContainerDrop = (e) => {
+    if (draggedBlockPosRef.current === null || !editor) return;
+    e.preventDefault();
+
+    const fromPos = draggedBlockPosRef.current;
+    const toPos = dropIndicator.targetPos;
+    draggedBlockPosRef.current = null;
+    setDropIndicator({ visible: false, top: 0, targetPos: null });
+
+    if (toPos === null || toPos === undefined) return;
+
+    try {
+      const { state, view } = editor;
+      const $from = state.doc.resolve(fromPos);
+      const node = $from.node(1);
+      const start = $from.before(1);
+      const end = $from.after(1);
+
+      if (!node || (toPos >= start && toPos <= end)) return;
+
+      let tr = state.tr.delete(start, end);
+      const mappedTo = tr.mapping.map(toPos);
+      tr = tr.insert(mappedTo, node);
+      view.dispatch(tr.scrollIntoView());
+    } catch {
+      // ignore invalid drop
+    }
+  };
+
+  const handleContainerDragEnd = () => {
+    draggedBlockPosRef.current = null;
+    setDropIndicator({ visible: false, top: 0, targetPos: null });
   };
 
   const turnIntoOptions = useMemo(() => [
@@ -893,6 +963,9 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         onMouseLeave={() => {
           if (!blockMenuOpen) setHoveredBlock((prev) => ({ ...prev, visible: false }));
         }}
+        onDragOver={handleContainerDragOver}
+        onDrop={handleContainerDrop}
+        onDragEnd={handleContainerDragEnd}
         className={`relative ${isFocusMode ? 'flex-1 overflow-y-auto' : 'max-h-[520px] overflow-y-auto'}`}
       >
         {mode === 'notion' ? (
@@ -913,17 +986,27 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
                 </button>
                 <button
                   type="button"
+                  draggable
+                  onDragStart={handleDragStart}
                   onClick={() => {
                     setBlockMenuOpen(!blockMenuOpen);
                     setActiveSubmenu(null);
                     setBlockMenuSearch('');
                   }}
-                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-grab"
-                  title={lang === 'vi' ? 'Mở menu block (Turn into, Color, Xóa...)' : 'Block menu'}
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-grab active:cursor-grabbing"
+                  title={lang === 'vi' ? 'Kéo để di chuyển • Bấm để mở menu block' : 'Drag to move • Click for menu'}
                 >
                   <GripVertical className="w-3.5 h-3.5" />
                 </button>
               </div>
+            )}
+
+            {/* Drop Indicator Line */}
+            {dropIndicator.visible && (
+              <div
+                style={{ top: dropIndicator.top }}
+                className="absolute left-10 right-4 h-0.5 bg-indigo-500 rounded-full z-30 pointer-events-none shadow-sm"
+              />
             )}
 
             {/* Block Action Menu Popover (Turn into, Color, Duplicate, Delete) */}
