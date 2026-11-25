@@ -21,6 +21,7 @@ import AudioPlayer from '../../components/AudioPlayer';
 import CodeBlock from '../../components/CodeBlock';
 import CommentSection from '../../components/CommentSection';
 import ShareButtons from '../../components/ShareButtons';
+import CopyForLLMButton from '../../components/CopyForLLMButton';
 import { useApp } from '../../contexts/AppContext';
 import useSEO from '../../hooks/useSEO';
 import NotFound from './NotFound';
@@ -338,9 +339,29 @@ export default function BlogDetail() {
             {isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
           </button>
 
-          {/* Quick Share Buttons on Top */}
-          <div className="hidden sm:block pl-2 border-l border-zinc-200 dark:border-zinc-800">
-            <ShareButtons title={post.title} />
+          {/* Quick Share Buttons & Copy for LLM on Top */}
+          <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800">
+            <CopyForLLMButton
+              getMarkdown={() => {
+                const tagsStr = Array.isArray(post.tags) ? post.tags.join(', ') : (post.tags || '');
+                const authorName = post.author?.display_name || post.author?.username || 'AllinOneBlog';
+                return [
+                  `# ${post.title}`,
+                  '',
+                  `> **URL:** ${window.location.href}`,
+                  `> **Author:** @${authorName}`,
+                  tagsStr ? `> **Tags:** ${tagsStr}` : null,
+                  post.created_at ? `> **Published:** ${post.created_at}` : null,
+                  '',
+                  '---',
+                  '',
+                  post.content || ''
+                ].filter((line) => line !== null).join('\n');
+              }}
+            />
+            <div className="hidden sm:block">
+              <ShareButtons title={post.title} />
+            </div>
           </div>
         </div>
       </div>
