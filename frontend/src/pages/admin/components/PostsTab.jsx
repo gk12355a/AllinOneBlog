@@ -8,6 +8,7 @@ import { postApi, mediaApi, seriesApi } from '../../../services/api';
 import userService from '../../../services/userService';
 import { useApp } from '../../../contexts/AppContext';
 import PaginationControl from './PaginationControl';
+import NotionEditor from './NotionEditor';
 
 export default function PostsTab({ posts = [], onPostsUpdated }) {
   const { t } = useApp();
@@ -863,18 +864,14 @@ export default function PostsTab({ posts = [], onPostsUpdated }) {
                 />
               </div>
 
-              {/* Content Markdown */}
+              {/* Content Notion / Markdown Editor */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
-                  {t('admin.content')} (Markdown) *
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                  {t('admin.content')} (Notion / Markdown) *
                 </label>
-                <textarea
-                  rows={8}
-                  required
+                <NotionEditor
                   value={newPost.content}
-                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                  placeholder="# Nhập nội dung bài viết định dạng Markdown..."
-                  className="w-full text-xs font-mono p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
+                  onChange={(md) => setNewPost((prev) => ({ ...prev, content: md }))}
                 />
               </div>
 
