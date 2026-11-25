@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /settings
+Disallow: /inbox
+Disallow: /library
+
+Sitemap: https://allinoneblog.onrender.com/sitemap.xml

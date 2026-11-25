@@ -22,6 +22,7 @@ import CodeBlock from '../../components/CodeBlock';
 import CommentSection from '../../components/CommentSection';
 import ShareButtons from '../../components/ShareButtons';
 import { useApp } from '../../contexts/AppContext';
+import useSEO from '../../hooks/useSEO';
 import NotFound from './NotFound';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -33,6 +34,28 @@ export default function BlogDetail() {
   const { user, readingFontSize, t } = useApp();
   const [post, setPost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useSEO({
+    title: post?.title,
+    description: post?.excerpt || post?.title,
+    image: post?.cover_image,
+    type: 'article',
+    jsonLd: post
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: post.title,
+          description: post.excerpt || post.title,
+          image: post.cover_image ? [post.cover_image] : undefined,
+          datePublished: post.created_at,
+          dateModified: post.updated_at || post.created_at,
+          author: {
+            '@type': 'Person',
+            name: post.author?.display_name || post.author?.username || 'AllinOneBlog'
+          }
+        }
+      : null
+  });
   const [isReaderMode, setIsReaderMode] = useState(false);
   const [fontSize, setFontSize] = useState(() => {
     return localStorage.getItem('blog_font_size') || (readingFontSize === 'small' ? 'sm' : readingFontSize === 'large' ? 'lg' : 'base');

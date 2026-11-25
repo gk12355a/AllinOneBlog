@@ -4,10 +4,17 @@ import { ArrowRight, Download, Mail, ExternalLink, Sparkles, Briefcase, Code, Te
 import { GithubIcon } from '../../components/SocialIcons';
 import api from '../../services/api';
 import { useApp } from '../../contexts/AppContext';
+import useSEO from '../../hooks/useSEO';
 
 export default function Home() {
   const { t, user, lang } = useApp();
   const [profile, setProfile] = useState(null);
+
+  useSEO({
+    title: profile?.full_name ? `${profile.full_name} — Portfolio & Blog` : 'Trang chủ',
+    description: profile?.bio || 'Chia sẻ kiến thức lập trình, DevOps, Kubernetes và các dự án thực tế.',
+    image: profile?.avatar_url || '/avatar_default.jpg'
+  });
   const [featuredProjects, setFeaturedProjects] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
   const [contactForm, setContactForm] = useState({ 
