@@ -404,6 +404,9 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
         return false;
       },
       handleDrop: (view, event) => {
+        if (draggedBlockPosRef.current !== null) {
+          return true;
+        }
         const files = event.dataTransfer?.files;
         if (!files || files.length === 0) return false;
         const file = files[0];
@@ -524,7 +527,7 @@ export default function NotionEditor({ value = '', onChange, placeholder }) {
     draggedBlockPosRef.current = hoveredBlock.pos;
     setBlockMenuOpen(false);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', 'notion-block');
+    e.dataTransfer.setData('application/x-notion-block', '1');
   };
 
   const handleContainerDragOver = (e) => {
